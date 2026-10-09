@@ -8,6 +8,8 @@ FILES = (
     "SKILL.md", "README.md", "LICENSE", "CONTEST_DECLARATION.md", "MCP_INTEGRATION.md",
     "mcp-config.example.json", "scripts/render_card.py", "scripts/mcp_readonly.py",
     "scripts/connect_mcp.py",
+    "scripts/import_mcp_footprints.py",
+    "scripts/sync_footprints.py",
     "scripts/visual_assets.py", "templates/card.html",
     "assets/handoff.png", "assets/title.png", "assets/paper.png",
     "assets/fonts/source.css", "assets/fonts/dm-mono-source.css",

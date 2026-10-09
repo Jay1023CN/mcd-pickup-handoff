@@ -98,6 +98,14 @@ python3 scripts/render_card.py examples/order.synthetic.json --output private/de
 
 ## 独立连接官方 MCP
 
+生成真实手账的完整入口（默认不查福利；加 --with-benefits 只读查询券与活动）：
+
+```sh
+python3 scripts/sync_footprints.py --prompt-token --order-offset +08:00 --with-benefits
+```
+
+如果执行环境已绑定 MCD_MCP_TOKEN Secret，可省去 --prompt-token。结果保存在 private/mcp/footprints.html。官方下单时间字段未带偏移，--order-offset 是调用方明确选择的解释；报告保留这项说明。本次服务器时区为 GMT+08:00；不将其冒充原始订单的时区字段。
+
 先到 [官方平台](https://open.mcd.cn/mcp) 申请自己的 Token。已在环境中配置 `MCD_MCP_TOKEN` 时运行：
 
 ```sh
@@ -144,11 +152,11 @@ python3 -m unittest discover -s tests -v
 python3 scripts/package_skill.py
 ```
 
-已完成本地生成器、只读客户端、离线演示和自动化测试。**当前未使用真实麦当劳 MCP Token 联调，未在 WorkBuddy 中实际开发/验收，尚未提交报名。** 离线示例与测试不会被作为真实调用证据。详见 [验证记录](docs/VALIDATION.md)。
+已完成本地生成器、只读客户端、离线演示和真实 MCP 联调。**2026-10-09 已实际查询订单列表、订单详情、服务器时间、可领券和活动日历，并生成真实本地轨迹；尚未在 WorkBuddy 中开发/验收，尚未提交报名。** 公开示例全部仍为模拟数据，真实响应不公开。详见 [验证记录](docs/VALIDATION.md)。
 
 ## 参赛材料
 
-仓库包含 `README.md`、官方原版 `CONTEST_DECLARATION.md`、`MCP_INTEGRATION.md`、环境变量配置示例和可运行内容。真实 MCP 联调完成后才能如实提交报名；申请 WorkBuddy 专项奖励还需要真实使用 WorkBuddy 并导出脱敏对话为根目录 `workbuddy.md`，本仓库不生成虚构对话。
+仓库包含 `README.md`、官方原版 `CONTEST_DECLARATION.md`、`MCP_INTEGRATION.md`、环境变量配置示例和可运行内容。真实 MCP 联调已完成，报名草稿待提交；申请 WorkBuddy 专项奖励还需要真实使用 WorkBuddy 并导出脱敏对话为根目录 `workbuddy.md`，本仓库不生成虚构对话。
 
 [报名草稿](docs/REGISTRATION.md) · [官方比赛规则](https://github.com/M-China/mcd-developer-innovation-challenge/blob/main/activityGuidelines.md) · [来源与同类调研](docs/SOURCES.md)
 
@@ -161,6 +169,7 @@ SKILL.md                     Skill 工作流程
 scripts/render_card.py       白名单卡片生成器
 scripts/mcp_readonly.py      官方 MCP 只读客户端
 scripts/connect_mcp.py       隐藏输入 Token 的真实连接入口
+scripts/import_mcp_footprints.py 实际 MCP 响应到轨迹输入的字段映射
 scripts/footprints.py        订单范围、去重与聚合统计
 scripts/render_footprints.py 手绘订单手账生成器
 scripts/package_skill.py     安装包生成器

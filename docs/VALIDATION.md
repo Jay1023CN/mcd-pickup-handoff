@@ -16,8 +16,8 @@
 
 ## 尚未验证
 
-- 没有配置麦当劳 MCP Token，未发起真实 order-list / query-order 调用。
-- 未验证实际返回字段映射、可获得的取餐凭证形式、门店代取条件和真实订单状态变化。
+- 未验证选定到店订单的完整交接流程、门店代取条件、取餐柜凭证有效期和订单状态实时变化。
+- 原始下单时间没有偏移；轨迹按调用方明确选择的 +08:00 解读，报告注明此解释。门店地址未能提供可保守识别的明确城市时，城市保持缺失。
 - 未在 WorkBuddy 实际导入或完成对话验收；没有伪造 workbuddy.md。
 - 模拟卡片展示、客户端单元测试和 ZIP 检查均不等于真实 MCP 联调或报名成功。
 
@@ -26,3 +26,11 @@
 用自己的连接器查询已有订单，人工核对门店/取餐方式/状态，按 references/input-format.md 规范化生成卡片。在本文件记录调用日期、工具名、成功/失败和字段映射发现即可，不记录 Token、真实取餐码、电话、住址、完整订单 ID 或未经脱敏的返回。
 
 若使用 WorkBuddy，导出真实开发或验收对话并脱敏后保存到根目录 workbuddy.md，再按比赛规则提交报名。
+
+## 真实 MCP 联调记录（不含账户内容）
+
+2026-10-09，Codex：带用户提供的有效凭据完成 initialize、tools/list；真实成功调用 now-time-info、order-list、query-order、available-coupons、campaign-calendar。凭据在隐藏终端输入后仅由连接进程使用；不保存到仓库或响应文件。云环境长期 Secret 尚未绑定。
+
+已根据当前 structuredContent 校验业务 success，读取真实列表与详情，生成 private/my-footprints.html / .txt / .summary.json。原始响应、身份字段、订单标识、门店与金额不发布；公开演示仍是 synthetic。
+
+实际发现：query-order 的文档描述了数字 orderStatus 枚举，但响应中的 orderStatus 为中文状态，另有未说明的数字 status。当前只映射已观察且含义明确的“订单已完成／订单已取消”；其他值保持 unknown。realTotalAmount 在详情字段说明中明确为实际支付金额，按 Decimal 换算整分；套餐只计主项，避免累加子项。响应未提供联名核验字段，不自动识别联名。
