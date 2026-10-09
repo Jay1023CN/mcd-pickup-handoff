@@ -11,6 +11,8 @@
 *.css text eol=lf
 *.svg text eol=lf
 *.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
 *.cmd text eol=crlf
 *.png binary
 *.zip binary

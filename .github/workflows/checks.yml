@@ -1,0 +1,69 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  connector:
+    name: Connector (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+      - name: Linux GUI test display
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y xvfb
+      - name: Test connector on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -X utf8 -m unittest discover -s tests -q
+      - name: Test connector on Windows
+        if: runner.os == 'Windows'
+        run: python -X utf8 -m unittest discover -s tests -q
+      - name: Check public files and packages
+        run: python -X utf8 scripts/check_public_artifacts.py
+
+  mobile-api:
+    name: Mobile API and migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Test API with real SQLite SQL
+        working-directory: web
+        run: node --test tests/*.test.mjs
+
+  phone-site:
+    name: Phone site build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm run install:ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run build
