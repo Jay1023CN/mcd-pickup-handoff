@@ -3,6 +3,8 @@
 以当前连接器 tools/list schema 为准，工具名以官方仓库为参考：
 
 - `order-list`：近期到店/外送历史订单；不是麦麦商城订单。
+- `campaign-calendar`：当月活动日历，福利夹可选读取；可能含往期、当前及未来活动。
+- `available-coupons`：当前可领取优惠券，福利夹可选读取；查询不等于领取。
 - `query-order`：已选定订单的详情、内容和状态。
 - `now-time-info`：服务器当前时间；不能把它当作订单的最后更新时间。
 

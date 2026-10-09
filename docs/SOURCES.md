@@ -7,7 +7,7 @@
 1. [比赛仓库](https://github.com/M-China/mcd-developer-innovation-challenge)：报名方式和必需文件。
 2. [活动规则](https://github.com/M-China/mcd-developer-innovation-challenge/blob/80b3de97c303efe0aef67549d74e24920dd03e1e/activityGuidelines.md)：公开仓库、真实 MCP 使用、排名与 WorkBuddy 材料要求。
 3. [参赛声明原文件](https://github.com/M-China/mcd-developer-innovation-challenge/blob/80b3de97c303efe0aef67549d74e24920dd03e1e/CONTEST_DECLARATION.md)：本仓库按原始字节复制，未修改。
-4. [官方 MCP 说明](https://github.com/M-China/mcd-mcp-server/tree/e90ecc5c918f307ff5f997caa73e4d60bef375e9)：服务接入与 order-list / query-order / now-time-info 工具描述。
+4. [官方 MCP 说明](https://github.com/M-China/mcd-mcp-server/blob/521150dd82b7b1887e9d257800ee973ed56be0e5/README.md)：服务接入与 33 个公开工具描述，完整整理见 [MCP_TOOLS.md](MCP_TOOLS.md)。
 5. [WorkBuddy 官方连接器教程](https://www.workbuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Connector)：客户端接入参考；实际界面以安装版本为准。
 6. [MCP Streamable HTTP 规范](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)：客户端传输参考。
 
@@ -26,6 +26,7 @@
 ## 视觉素材与许可
 
 - 手绘交接插画、剪贴艺术字、纸张纹理和设计参考由本项目通过 Image Gen 生成；并非麦当劳官方宣传素材。
+- 麦麦轨迹的手写四字标题、地图邮票与快餐纸袋拼贴也由 Image Gen 独立生成；地图仅为装饰，不代表真实用户位置。未把用户提供的聊天截图或聊天者身份放进项目。
 - [Noto Sans SC](https://fonts.google.com/specimen/Noto+Sans+SC) 用于中文界面，[DM Mono](https://fonts.google.com/specimen/DM+Mono) 用于时间与编号；均为 SIL OFL 字体，许可保存在 assets/fonts/。字体按固定界面文字裁剪，动态门店与餐品名缺失的字形使用设备中文字体。
 - [Phosphor Icons](https://github.com/phosphor-icons/core) 的 Bold 图标用于门店、纸袋、时钟和复制动作；MIT 许可保存在 assets/icons/LICENSE.txt。
 - 页面将所需图片、图标和字体内嵌到 HTML，可离线查看；没有外部字体或图片请求。

@@ -15,7 +15,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 ENDPOINT = "https://mcp.mcd.cn"
-READ_TOOLS = frozenset({"order-list", "query-order", "now-time-info"})
+READ_TOOLS = frozenset({"order-list", "query-order", "now-time-info", "campaign-calendar", "available-coupons"})
 
 
 def decode_sse(response: Any, request_id: int) -> dict[str, Any]:
@@ -51,7 +51,7 @@ class Client:
         if method not in {"initialize", "notifications/initialized", "tools/list", "tools/call"}:
             raise ValueError("unsupported RPC method")
         if method == "tools/call" and params.get("name") not in READ_TOOLS:
-            raise ValueError("this client permits only read-only order tools")
+            raise ValueError("this client permits only the reviewed read-only tools")
         self._counter += 1
         payload: dict[str, Any] = {"jsonrpc": "2.0", "method": method, "params": params}
         if not notification:
@@ -81,7 +81,7 @@ class Client:
 
     def initialize(self) -> None:
         result = self.rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
-                                         "clientInfo": {"name": "mcd-pickup-handoff", "version": "0.1.0"}})
+                                         "clientInfo": {"name": "mcd-pickup-handoff", "version": "0.2.0"}})
         protocol = result.get("protocolVersion")
         if not isinstance(protocol, str) or not protocol:
             raise ValueError("server did not negotiate a protocol version")

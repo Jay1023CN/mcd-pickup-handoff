@@ -18,11 +18,14 @@ FILES = (
     "assets/icons/clipboard-text.svg", "assets/icons/map-pin.svg", "assets/icons/LICENSE.txt",
     "references/tools.md", "references/input-format.md", "examples/order.synthetic.json",
     "docs/SOURCES.md", "docs/REGISTRATION.md", "docs/VALIDATION.md", "docs/demo.html", "docs/demo.png", "docs/demo.txt",
+    "scripts/footprints.py", "scripts/render_footprints.py", "templates/footprints.html",
+    "skills/mcd-footprints/SKILL.md", "assets/footprints-collage.png", "assets/footprints-title.png",
+    "examples/footprints.synthetic.json", "docs/MCP_TOOLS.md",
 )
 
 
 def main():
-    output = ROOT / "packages/mcd-pickup-handoff-v0.1.0.zip"
+    output = ROOT / "packages/mcd-pickup-handoff-v0.2.0.zip"
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         for name in FILES:
