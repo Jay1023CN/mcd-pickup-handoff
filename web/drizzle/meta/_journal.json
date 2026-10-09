@@ -36,6 +36,13 @@
       "when": 1791562034835,
       "tag": "0004_owner_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791562726876,
+      "tag": "0005_friend_progress",
+      "breakpoints": true
     }
   ]
 }

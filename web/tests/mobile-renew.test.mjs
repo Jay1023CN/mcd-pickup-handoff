@@ -53,7 +53,7 @@ test("renew fixes expired unclaimed pairing, and a normal pair request preserves
   assert.equal((await f.call("/devices/claim", { pair_code: renewed.data.pair_code }, { user: "owner-a" })).status, 200);
   const ordinary = await f.call("/devices/renew", { device_id: d.device_id, reset_owner: false }, { token: d.device_token });
   assert.equal(ordinary.data.paired, true); assert.match(ordinary.data.pair_code, /^[a-f0-9]{16}$/);
-  assert.equal(f.sqlite.prepare("SELECT owner_id FROM mobile_devices WHERE id=?").get(d.device_id).owner_id, "owner-a");
+  assert.equal(f.sqlite.prepare("SELECT owner_id FROM mobile_devices WHERE id=?").get(d.device_id).owner_id, (await f.call("/session", undefined, { user: "owner-a" })).data.user.id);
   assert.equal((await f.call("/devices/renew", { device_id: d.device_id, reset_owner: false }, { token: "b".repeat(64) })).status, 401);
   assert.equal((await f.call("/devices/renew", { device_id: d.device_id, reset_owner: "true" }, { token: d.device_token })).status, 422);
 });

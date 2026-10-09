@@ -27,6 +27,7 @@ export const mobileShares = sqliteTable("mobile_shares", {
   card: text("card").notNull(), queriedAt: text("queried_at").notNull(),
   expiresAt: integer("expires_at").notNull(), verified: integer("verified").notNull(),
   revoked: integer("revoked").notNull().default(0), refreshedAt: integer("refreshed_at").notNull().default(0),
+  progressStep: text("progress_step"), progressUpdatedAt: text("progress_updated_at"),
 }, (t) => [
   index("mobile_shares_owner_history_idx").on(t.ownerId, t.expiresAt),
   index("mobile_shares_retention_idx").on(t.expiresAt),

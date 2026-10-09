@@ -140,3 +140,28 @@ test("local HTTP integration claims a device, restores owner by cookie and logs 
     const ended = await fetch(base + "/api/mobile/session", { headers: { cookie } }); assert.equal((await ended.json()).authenticated, false);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test("explicit reset creates a new owner even when an old phone claims it, isolating the other old phone", async () => {
+  const f = fixture(), a = await f.paired();
+  const extra = await f.call("/devices/renew", { device_id: a.d.device_id, reset_owner: false }, { token: a.d.device_token });
+  const secondClaim = await f.call("/devices/claim", { pair_code: extra.data.pair_code });
+  const secondCookie = secondClaim.cookie.split(";")[0];
+  assert.equal((await f.call("/session", undefined, { cookie: secondCookie })).data.user.id, a.owner);
+  const reset = await f.call("/devices/renew", { device_id: a.d.device_id, reset_owner: true }, { token: a.d.device_token });
+  assert.equal((await f.call("/session", undefined, { cookie: secondCookie })).data.device, undefined);
+  const reclaim = await f.call("/devices/claim", { pair_code: reset.data.pair_code }, { cookie: a.cookie }); assert.equal(reclaim.status, 200);
+  const newCookie = reclaim.cookie.split(";")[0], restored = await f.call("/session", undefined, { cookie: newCookie });
+  assert.notEqual(restored.data.user.id, a.owner); assert.equal(restored.data.device.id, a.d.device_id);
+  const oldPhone = await f.call("/session", undefined, { cookie: secondCookie }); assert.equal(oldPhone.data.user.id, a.owner); assert.equal(oldPhone.data.device, undefined);
+  const job = await f.call("/jobs", { action: "orders", args: {} }, { cookie: newCookie }); assert.equal(job.status, 200);
+  assert.equal((await f.call(`/jobs/${job.data.job_id}`, undefined, { cookie: secondCookie })).status, 404);
+  assert.equal((await f.call("/jobs", { action: "orders", args: {} }, { cookie: secondCookie })).status, 409);
+  const stamp = new Date(f.time()).toISOString();
+  const issued = await f.call("/devices/share", { device_id: a.d.device_id, card: { kind: "mcp", retrieved_at: stamp, store_name: "重配后的测试门店", store_address: "", pickup_mode: "外带", status_text: "配餐中", items: [{ name: "测试餐品", quantity: 1 }], pickup_code: "SYNTHETIC_CODE" }, record_id: "c".repeat(32), expires_at: new Date(f.time() + 600_000).toISOString(), queried_at: stamp }, { token: a.d.device_token }); assert.equal(issued.status, 200);
+  assert.equal((await f.call("/shares", undefined, { cookie: secondCookie })).data.entries.some(e => e.id === issued.data.share.id), false);
+  assert.equal((await f.call(`/shares/${issued.data.share.id}/revoke`, {}, { cookie: secondCookie })).status, 404);
+  assert.equal((await f.call("/shares", undefined, { cookie: newCookie })).data.entries.some(e => e.id === issued.data.share.id), true);
+  const renewed = await f.call("/devices/renew", { device_id: a.d.device_id, reset_owner: false }, { token: a.d.device_token });
+  const rejoined = await f.call("/devices/claim", { pair_code: renewed.data.pair_code }, { cookie: secondCookie });
+  assert.equal((await f.call("/session", undefined, { cookie: rejoined.cookie.split(";")[0] })).data.user.id, restored.data.user.id);
+});

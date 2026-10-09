@@ -8,7 +8,7 @@
 
 [打开手机网页](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/) · [体验演示](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/demo) · [下载连接器与 Skill v0.4.0](packages/mcd-pickup-handoff-v0.4.0.zip) · [参赛报名 #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)
 
-正在开会、排队，或者朋友正好路过门店，一次交接就够了。官方返回取餐码时默认带上，也可以隐藏。最近发出的交接会留在自己的网页里，方便找回链接或撤销。
+正在开会、排队，或者朋友正好路过门店，一次交接就够了。官方返回取餐码时默认带上，也可以隐藏。朋友能直接反馈“我来取／我到店了／已帮你取好”，你在最近交接里就能看到；需要时还能找回链接或撤销。
 
 <img src="docs/mobile-demo.png" alt="手机网页使用模拟订单制作交接链接" width="850">
 
@@ -23,6 +23,8 @@
 3. 用手机扫描连接窗口里的二维码，或在手机网页输入临时配对码。不用注册账号。
 4. 配对后选择到店订单，确认后生成交接链接。另一部手机也可以用电脑新生成的配对码连接。
 5. 点击“发给朋友”。朋友无需登录，打开链接即可查看，到店前可再刷新一次。
+
+朋友页可复制取餐码和门店地址、打开地图导航。取好后点“已帮你取好”，双方页面收起旧码；朋友反馈与官方订单状态分开展示。
 
 官方返回取餐码时，交接卡默认带上；取消勾选即可隐藏。没返回时显示“暂无取餐码”。订单编号、手机号、付款链接和配送地址不放进卡片。
 
@@ -58,8 +60,7 @@ WorkBuddy 的 MCP 配置可参考 [mcp-config.example.json](mcp-config.example.j
 python3 scripts/render_card.py examples/order.synthetic.json --output private/demo --include-pickup-code
 python3 -m unittest discover -s tests -v
 cd web
-node --test tests/mobile-api.test.mjs
-node --test tests/retention.test.mjs
+node --test tests/mobile-api.test.mjs tests/mobile-renew.test.mjs tests/mobile-session.test.mjs tests/mobile-progress.test.mjs tests/retention.test.mjs
 cd ..
 python3 scripts/package_skill.py
 ```

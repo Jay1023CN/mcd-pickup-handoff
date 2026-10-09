@@ -1,12 +1,16 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Card, expired, request, ShareView, timeText, waitForJob } from "./mobile-api";
+import { ApiError, Card, expired, FriendProgress, progressText, request, ShareView, timeText, waitForJob } from "./mobile-api";
 import { Brand, Footer, Loading, MealCard, Notice } from "./shared";
 import { demoCard } from "./simulated-data";
+function simulatedProgress(): FriendProgress | undefined {
+  try { const value = JSON.parse(localStorage.getItem("mcd-demo-progress") || "null"); if (value && ["accepted", "arrived", "collected"].includes(value.step) && typeof value.updated_at === "string") return value; } catch { /* Ignore incomplete simulation state. */ }
+}
 
 export function FriendHandoff({ id, demo = false }: { id: string; demo?: boolean }) {
   const [view, setView] = useState<ShareView | null>(null), [busy, setBusy] = useState(true), [error, setError] = useState("");
   const [access, setAccess] = useState(""), [now, setNow] = useState(() => Date.now()), [simulatedClosed, setSimulatedClosed] = useState(false);
+  const [progressBusy, setProgressBusy] = useState<FriendProgress["step"] | null>(null), [progressNotice, setProgressNotice] = useState("");
   const running = useRef(false), accessRef = useRef(""), demoCodeRef = useRef(true), lifecycle = useRef<AbortController | null>(null), epoch = useRef(0);
   const hideCode = useCallback(() => { setView((previous) => previous ? { ...previous, verified: false, card: previous.card ? { ...previous.card, pickup_code: "" } : undefined } : previous); }, []);
   useEffect(() => {
@@ -24,20 +28,20 @@ export function FriendHandoff({ id, demo = false }: { id: string; demo?: boolean
     const load = async () => {
       if (!live) return;
       const version = ++epoch.current; lifecycle.current?.abort(); const controller = new AbortController(); lifecycle.current = controller; running.current = false;
-      setNow(Date.now()); hideCode(); setAccess(token);
+      setNow(Date.now()); hideCode(); setAccess(token); setProgressBusy(null); setProgressNotice("");
       if (!token) { setError("这个链接缺少访问凭据，请让朋友重新发完整链接。"); setBusy(false); return; }
       setBusy(true); setError("");
       const current = () => live && version === epoch.current && !controller.signal.aborted;
       try {
         if (demo && localStorage.getItem("mcd-demo-revoked") === "yes") throw new Error("这张模拟交接卡已撤销，请回到演示页重新生成。");
-        const next = demo ? { card: { ...demoCard(), pickup_code: demoCodeRef.current ? "A008" : "" }, expires_at: new Date(Date.now() + 600_000).toISOString(), queried_at: new Date().toISOString(), verified: true, online: true } : await request<ShareView>(`/shares/${encodeURIComponent(id)}/view`, {}, token, controller.signal);
+        const next: ShareView = demo ? { card: { ...demoCard(), pickup_code: demoCodeRef.current ? "A008" : "" }, expires_at: new Date(Date.now() + 600_000).toISOString(), queried_at: new Date().toISOString(), verified: true, online: true, progress: simulatedProgress() } : await request<ShareView>(`/shares/${encodeURIComponent(id)}/view`, {}, token, controller.signal);
         if (!current()) return;
-        if (!next.verified || !next.online || expired(next.expires_at)) { if (next.card) next.card = { ...next.card, pickup_code: "" }; }
+        if (!next.verified || !next.online || expired(next.expires_at) || next.progress?.step === "collected") { if (next.card) next.card = { ...next.card, pickup_code: "" }; }
         setView(next);
       } catch (e) { if (current()) { setView(null); setError(e instanceof Error ? e.message : "链接暂时无法读取，请重试。"); } } finally { if (current()) setBusy(false); }
     };
     const invalidate = () => { ++epoch.current; lifecycle.current?.abort(); };
-    const clear = () => { invalidate(); running.current = false; hideCode(); setNow(Date.now()); setBusy(false); };
+    const clear = () => { invalidate(); running.current = false; hideCode(); setNow(Date.now()); setBusy(false); setProgressBusy(null); };
     const onVisible = () => { if (document.visibilityState === "visible") void load(); else clear(); };
     const onShow = (event: PageTransitionEvent) => { if (event.persisted) void load(); };
     void Promise.resolve().then(load);
@@ -56,29 +60,55 @@ export function FriendHandoff({ id, demo = false }: { id: string; demo?: boolean
         await new Promise((resolve) => setTimeout(resolve, 650));
         if (!current()) return;
         if (localStorage.getItem("mcd-demo-revoked") === "yes") throw new Error("这张模拟交接卡已撤销，请回到演示页重新生成。");
-        setView((previous) => ({ card: { ...demoCard(), status_text: simulatedClosed ? "订单已完成" : "配餐中", pickup_code: simulatedClosed || !demoCodeRef.current ? "" : "A008" }, expires_at: previous?.expires_at || new Date(Date.now() + 600_000).toISOString(), queried_at: new Date().toISOString(), verified: !simulatedClosed, online: true, notice: simulatedClosed ? "订单已完成，请联系发起人确认。" : undefined }));
+        const progress = simulatedProgress();
+        setView((previous) => ({ card: { ...demoCard(), status_text: simulatedClosed ? "订单已完成" : "配餐中", pickup_code: simulatedClosed || !demoCodeRef.current || progress?.step === "collected" ? "" : "A008" }, expires_at: previous?.expires_at || new Date(Date.now() + 600_000).toISOString(), queried_at: new Date().toISOString(), verified: !simulatedClosed, online: true, notice: simulatedClosed ? "订单已完成，请联系发起人确认。" : undefined, progress }));
       } else {
         if (!expiresAt) { const initial = await request<ShareView>(`/shares/${encodeURIComponent(id)}/view`, {}, accessRef.current, signal); expiresAt = initial.expires_at; }
         const { job_id } = await request<{ job_id: string }>(`/shares/${encodeURIComponent(id)}/refresh`, {}, accessRef.current, signal);
         const result = await waitForJob<{ verified: boolean; card?: Card; queried_at?: string; notice?: string }>(job_id, { id, access: accessRef.current }, signal);
         if (!current()) return;
-        setView({ expires_at: expiresAt, queried_at: result.queried_at || "", online: true, verified: result.verified === true, card: result.card ? { ...result.card, pickup_code: result.verified === true ? result.card.pickup_code : "" } : undefined, notice: result.notice });
+        const next = await request<ShareView>(`/shares/${encodeURIComponent(id)}/view`, {}, accessRef.current, signal);
+        if (!current()) return;
+        if (!next.verified || !next.online || expired(next.expires_at) || next.progress?.step === "collected") { if (next.card) next.card = { ...next.card, pickup_code: "" }; }
+        setView({ ...next, notice: next.notice || result.notice });
       }
-    } catch (e) { if (current()) { setError(e instanceof Error ? e.message : "刷新失败，请联系发起人。"); setView((previous) => previous ? { ...previous, verified: false, online: false } : previous); } }
+    } catch (e) { if (current()) { setError(e instanceof Error ? e.message : "刷新失败，请联系发起人。"); if (e instanceof ApiError && e.status === 410) setView(null); else setView((previous) => previous ? { ...previous, verified: false, online: false } : previous); } }
     finally { if (current()) { running.current = false; setBusy(false); } }
   }
 
+  async function sendProgress(step: FriendProgress["step"]) {
+    if (!accessRef.current || running.current || !view || expired(view.expires_at) || view.progress?.step === "collected") return;
+    running.current = true; setProgressBusy(step); setProgressNotice(""); setError("");
+    const version = epoch.current, signal = lifecycle.current?.signal, current = () => version === epoch.current && !signal?.aborted;
+    try {
+      let progress: FriendProgress;
+      if (demo) { await new Promise((resolve) => setTimeout(resolve, 400)); if (!current()) return; if (localStorage.getItem("mcd-demo-revoked") === "yes") throw new ApiError("这张模拟交接卡已撤销。"); progress = { step, updated_at: new Date().toISOString() }; localStorage.setItem("mcd-demo-progress", JSON.stringify(progress)); }
+      else { const result = await request<{ progress: FriendProgress }>(`/shares/${encodeURIComponent(id)}/progress`, { step }, accessRef.current, signal); progress = result.progress; }
+      if (!current()) return;
+      setView((previous) => previous ? { ...previous, progress, card: previous.card && progress.step === "collected" ? { ...previous.card, pickup_code: "" } : previous.card } : previous);
+      setProgressNotice(`已反馈：${progressText(progress.step)}。`);
+    } catch (e) {
+      if (!current()) return;
+      hideCode(); setError(e instanceof Error ? e.message : "反馈没有送达，请重试。");
+      if (e instanceof ApiError && e.status === 410) setView(null);
+      if (!demo && e instanceof ApiError && e.status === 409) {
+        try { const next = await request<ShareView>(`/shares/${encodeURIComponent(id)}/view`, {}, accessRef.current, signal); if (!current()) return; if (!next.verified || !next.online || expired(next.expires_at) || next.progress?.step === "collected") { if (next.card) next.card = { ...next.card, pickup_code: "" }; } setView(next); } catch { /* Leave the old code hidden until a successful recheck. */ }
+      }
+    } finally { if (current()) { running.current = false; setProgressBusy(null); } }
+  }
+
   const isExpired = view ? expired(view.expires_at, now) : false;
-  const canUse = !!view?.verified && !!view.online && !isExpired && !busy;
+  const canUse = !!view?.verified && !!view.online && !isExpired && !busy && !progressBusy && view.progress?.step !== "collected";
   const safeCard = view?.card ? { ...view.card, pickup_code: canUse ? view.card.pickup_code : "", retrieved_at: view.queried_at || view.card.retrieved_at } : null;
   return <div className="site-shell friend-shell"><Brand demo={demo} /><main>
     <section className="friend-intro"><span className="eyebrow">{demo ? "朋友收到的页面 · 模拟数据" : "朋友托你帮忙取这一单"}</span><h1>这一单，<br />拜托你啦。</h1><p>先看门店和餐品，到了再刷新一下。</p><span className="friend-arrow" aria-hidden="true">↓</span></section>
     {demo && <Notice tone="neutral">模拟交接卡 · 所有信息均为演示数据，没有真实订单。</Notice>}
     {error && <Notice>{error}</Notice>}
-    {busy && !safeCard ? <div className="panel empty-state"><Loading>正在读取交接信息</Loading></div> : safeCard && <MealCard card={safeCard} showCode={canUse} busy={busy} demo={demo} />}
+    {busy && !safeCard ? <div className="panel empty-state"><Loading>正在读取交接信息</Loading></div> : safeCard && <MealCard card={safeCard} showCode={canUse} busy={busy || !!progressBusy} demo={demo} />}
+    {view && <section className="friend-progress" aria-label="朋友反馈"><div className="section-header"><div><span className="section-number">朋友反馈</span><h2>给朋友报个进度</h2></div></div>{view.progress ? <p className="progress-summary"><strong>{progressText(view.progress.step)}</strong><time>{timeText(view.progress.updated_at)}</time></p> : <p className="microcopy">点一下，朋友就能在交接记录里看到。</p>}{progressNotice && <p className="progress-notice" role="status">{progressNotice}</p>}{!isExpired && view.progress?.step !== "collected" && <div className="progress-buttons">{(["accepted", "arrived", "collected"] as const).map((step, index) => { const completedIndex = view.progress ? ["accepted", "arrived", "collected"].indexOf(view.progress.step) : -1; return <button key={step} className={`progress-button ${step === "collected" ? "last" : ""}`} disabled={busy || !!progressBusy || !access || completedIndex >= index} onClick={() => void sendProgress(step)}>{progressBusy === step ? <Loading>发送中</Loading> : <><span aria-hidden="true">{completedIndex >= index ? "✓" : String(index + 1).padStart(2, "0")}</span>{progressText(step)}</>}</button>; })}</div>}<p className="microcopy">这是帮忙取餐人的反馈，官方订单状态仍以上方查询结果为准。</p></section>}
     {view && <div className="friend-actions">{isExpired ? <Notice>交接链接已过期，请让朋友重新生成。</Notice> : !view.online ? <Notice>发起人的电脑暂时离线，取餐码已隐藏。请联系朋友，或稍后再刷新。</Notice> : !view.verified && !busy ? <Notice>{view.notice || "信息需要重新确认。点下方刷新，重新查询订单。"}</Notice> : null}
-      {!isExpired && <button className="button primary" disabled={busy || !access} onClick={refresh}>{busy ? <Loading>正在重新查询</Loading> : <>取餐前，刷新一次 <span aria-hidden="true">↻</span></>}</button>}
-      <div className="friend-meta"><span>{canUse ? "已核对最新订单" : busy ? "查询期间暂不显示取餐码" : "取餐码暂不显示"}</span><span>{isExpired ? "链接已过期" : `有效至 ${timeText(view.expires_at)}`}</span></div>
+      {!isExpired && <button className="button primary" disabled={busy || !!progressBusy || !access} onClick={refresh}>{busy ? <Loading>正在重新查询</Loading> : <>{view.progress?.step === "collected" ? "查看最新订单" : "取餐前，刷新一次"} <span aria-hidden="true">↻</span></>}</button>}
+      <div className="friend-meta"><span>{view.progress?.step === "collected" ? "朋友已反馈取好，取餐码已隐藏" : canUse ? "已核对最新订单" : busy ? "查询期间暂不显示取餐码" : "取餐码暂不显示"}</span><span>{isExpired ? "链接已过期" : `有效至 ${timeText(view.expires_at)}`}</span></div>
       <p className="microcopy">交接信息供朋友核对，门店取餐以官方订单凭证为准。</p>
     </div>}
     {!view && !busy && access && <button className="button secondary" onClick={refresh}>重试读取</button>}

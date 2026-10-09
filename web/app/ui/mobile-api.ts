@@ -1,10 +1,13 @@
 export type Card = { store_name: string; store_address?: string; pickup_mode: string; status_text: string; retrieved_at: string; items: { name: string; quantity: number }[]; pickup_code?: string };
 export type Order = { selection: string; store_name: string; status_text: string; created_at?: string; is_pickup: boolean };
 export type Session = { authenticated: boolean; user?: { id: string; name: string }; device?: { id: string; online: boolean } };
-export type ShareSummary = { id: string; store_name: string; status_text: string; queried_at: string; expires_at: string; revoked: boolean; verified: boolean; online: boolean; url?: string };
+export type FriendProgress = { step: "accepted" | "arrived" | "collected"; updated_at: string };
+export type ShareSummary = { id: string; store_name: string; status_text: string; queried_at: string; expires_at: string; revoked: boolean; verified: boolean; online: boolean; url?: string; progress?: FriendProgress };
 export type Inspection = { card: Card; can_handoff: boolean; has_pickup_code: boolean; status_category: string; notice: string };
-export type ShareResult = { card: Card; expires_at: string; share: { id: string; url: string } };
-export type ShareView = { card?: Card; expires_at: string; queried_at: string; verified: boolean; online: boolean; notice?: string };
+export type ShareResult = { card: Card; expires_at: string; share: { id: string; url: string }; progress?: FriendProgress };
+export type ShareView = { card?: Card; expires_at: string; queried_at: string; verified: boolean; online: boolean; notice?: string; progress?: FriendProgress };
+export function progressText(step: FriendProgress["step"]) { return { accepted: "我来取", arrived: "我到店了", collected: "已帮你取好" }[step]; }
+export function mapLink(card: Card) { const query = new URLSearchParams({ keyword: [card.store_name, card.store_address].filter(Boolean).join(" "), view: "map", src: "mcd-pickup-handoff", callnative: "1" }); return `https://uri.amap.com/search?${query}`; }
 export class ApiError extends Error { constructor(message: string, public status = 0) { super(message); } }
 export async function request<T>(path: string, body?: object, access?: string, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15_000);

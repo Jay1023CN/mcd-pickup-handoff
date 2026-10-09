@@ -90,7 +90,8 @@ test("session and pairing isolate identity; only hashes persist; pair code is si
   assert.notEqual(row.token_hash, d.device_token); assert.equal(row.pair_hash, null);
   assert.equal((await f.call("/devices/claim", { pair_code: d.pair_code }, { user: "owner-b" })).status, 410);
   const a = await f.call("/session", undefined, { user: "owner-a" }); assert.equal(a.data.device.online, true);
-  assert.equal(a.data.user.id, "owner-a");
+  assert.match(a.data.user.id, /^[a-f0-9]{32}$/);
+  assert.equal(row.owner_id, a.data.user.id);
   const b = await f.call("/session", undefined, { user: "owner-b" }); assert.equal(b.data.device, undefined);
   assert.equal((await f.call("/devices/claim", { pair_code: "random" })).status, 422);
 });
@@ -438,9 +439,10 @@ test("direct Skill publication has a revocation summary without inventing a reco
 
 test("share summaries are restricted to the recent seven days and the twenty latest records", async () => {
   const f = fixture(), d = await paired(f);
-  const insert = f.db.connection.prepare("INSERT INTO mobile_shares(id,owner_id,device_id,token_hash,record_id,card,queried_at,expires_at,verified) VALUES(?,'owner-a',?,'hash','private-record',?,?,?,1)");
-  for (let i = 0; i < 25; i++) insert.run(i.toString(16).padStart(32, "0"), d.device_id, JSON.stringify(mockCard(f)), new Date(f.time()).toISOString(), f.time() + i * 1000);
-  insert.run("a".repeat(32), d.device_id, JSON.stringify(mockCard(f)), new Date(f.time()).toISOString(), f.time() - 8 * 24 * 60 * 60_000);
+  const ownerId = (await f.call("/session", undefined, { user: "owner-a" })).data.user.id;
+  const insert = f.db.connection.prepare("INSERT INTO mobile_shares(id,owner_id,device_id,token_hash,record_id,card,queried_at,expires_at,verified) VALUES(?, ?,?,'hash','private-record',?,?,?,1)");
+  for (let i = 0; i < 25; i++) insert.run(i.toString(16).padStart(32, "0"), ownerId, d.device_id, JSON.stringify(mockCard(f)), new Date(f.time()).toISOString(), f.time() + i * 1000);
+  insert.run("a".repeat(32), ownerId, d.device_id, JSON.stringify(mockCard(f)), new Date(f.time()).toISOString(), f.time() - 8 * 24 * 60 * 60_000);
   const entries = (await f.call("/shares", undefined, { user: "owner-a" })).data.entries;
   assert.equal(entries.length, 20);
   assert.equal(entries[0].id, (24).toString(16).padStart(32, "0"));
@@ -452,8 +454,9 @@ test("share summaries are restricted to the recent seven days and the twenty lat
 
 test("recovered URL must come from the same owner and device as its share", async () => {
   const f = fixture(), d = await paired(f), s = await createdShare(f, d);
+  const ownerId = (await f.call("/session", undefined, { user: "owner-a" })).data.user.id;
   f.db.connection.prepare("UPDATE mobile_jobs SET owner_id='owner-b' WHERE id=?").run(s.job.id);
   assert.equal((await f.call("/shares", undefined, { user: "owner-a" })).data.entries[0].url, undefined);
-  f.db.connection.prepare("UPDATE mobile_jobs SET owner_id='owner-a',device_id='other-device' WHERE id=?").run(s.job.id);
+  f.db.connection.prepare("UPDATE mobile_jobs SET owner_id=?,device_id='other-device' WHERE id=?").run(ownerId, s.job.id);
   assert.equal((await f.call("/shares", undefined, { user: "owner-a" })).data.entries[0].url, undefined);
 });
