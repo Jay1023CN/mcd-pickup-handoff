@@ -1,0 +1,13 @@
+{
+  "source": {"kind": "synthetic", "tool": "query-order", "retrieved_at": "2026-10-09T17:30:00+08:00"},
+  "is_store_pickup": true,
+  "store": {"name": "演示餐厅（虚构门店）", "address": "示例街道 1 号，非真实门店", "address_kind": "restaurant"},
+  "pickup_mode": "到店取餐（示例）",
+  "status_text": "正在准备（示例状态）",
+  "items": [{"name": "示例汉堡", "quantity": 2}, {"name": "示例小食", "quantity": 1}],
+  "pickup_code": "DEMO-001",
+  "order_id": "NEVER-SHARE-ORDER-ID",
+  "phone": "NEVER-SHARE-PHONE",
+  "payment_url": "NEVER-SHARE-PAYMENT-LINK",
+  "delivery_address": "NEVER-SHARE-HOME-ADDRESS"
+}
