@@ -22,3 +22,10 @@
 同类项目只用于选题调研和引用，未复制其代码、提示词、素材或开发记录。本项目代码与 Skill 独立编写。官方参赛声明按比赛要求复制；配置格式按官方 MCP 接入说明改为环境变量占位符。
 
 本次搜索未发现以“取餐交接卡”为核心的同类麦当劳 MCP 项目。GitHub 搜索无法证明不存在其他相似作品，项目不宣称“首个”或“唯一”。
+
+## 视觉素材与许可
+
+- 手绘交接插画、剪贴艺术字、纸张纹理和设计参考由本项目通过 Image Gen 生成；并非麦当劳官方宣传素材。
+- [Noto Sans SC](https://fonts.google.com/specimen/Noto+Sans+SC) 用于中文界面，[DM Mono](https://fonts.google.com/specimen/DM+Mono) 用于时间与编号；均为 SIL OFL 字体，许可保存在 assets/fonts/。字体按固定界面文字裁剪，动态门店与餐品名缺失的字形使用设备中文字体。
+- [Phosphor Icons](https://github.com/phosphor-icons/core) 的 Bold 图标用于门店、纸袋、时钟和复制动作；MIT 许可保存在 assets/icons/LICENSE.txt。
+- 页面将所需图片、图标和字体内嵌到 HTML，可离线查看；没有外部字体或图片请求。

@@ -7,6 +7,15 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = (
     "SKILL.md", "README.md", "LICENSE", "CONTEST_DECLARATION.md", "MCP_INTEGRATION.md",
     "mcp-config.example.json", "scripts/render_card.py", "scripts/mcp_readonly.py",
+    "scripts/visual_assets.py", "templates/card.html",
+    "assets/handoff.png", "assets/title.png", "assets/paper.png",
+    "assets/fonts/source.css", "assets/fonts/dm-mono-source.css",
+    "assets/fonts/noto-display-0.ttf", "assets/fonts/noto-display-1.ttf",
+    "assets/fonts/noto-display-2.ttf", "assets/fonts/noto-display-3.ttf",
+    "assets/fonts/dm-mono-0.ttf", "assets/fonts/dm-mono-1.ttf",
+    "assets/fonts/NotoSansSC-OFL.txt", "assets/fonts/DMMono-OFL.txt",
+    "assets/icons/storefront.svg", "assets/icons/bag.svg", "assets/icons/clock.svg",
+    "assets/icons/clipboard-text.svg", "assets/icons/map-pin.svg", "assets/icons/LICENSE.txt",
     "references/tools.md", "references/input-format.md", "examples/order.synthetic.json",
     "docs/SOURCES.md", "docs/REGISTRATION.md", "docs/VALIDATION.md", "docs/demo.html", "docs/demo.png", "docs/demo.txt",
 )
