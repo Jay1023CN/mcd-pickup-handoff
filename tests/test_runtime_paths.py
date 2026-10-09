@@ -28,7 +28,7 @@ class RuntimePathTests(unittest.TestCase):
             bundle.mkdir()
             (bundle / ".env").write_text("MCD_MCP_TOKEN=BUNDLE_TOKEN_MUST_NOT_BE_READ", encoding="utf-8")
             with patch.object(sys, "frozen", True, create=True), patch.object(sys, "_MEIPASS", str(bundle), create=True), patch.dict(os.environ, {"LOCALAPPDATA": str(root)}, clear=True):
-                self.assertEqual(runtime_paths.resource_root(), bundle)
+                self.assertEqual(runtime_paths.resource_root(), bundle.resolve())
                 data = runtime_paths.data_root()
                 self.assertEqual(data, root / "McdPickupHandoff")
                 self.assertFalse(data.exists())
