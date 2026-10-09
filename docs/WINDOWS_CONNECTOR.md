@@ -1,5 +1,9 @@
 # 电脑连接一次，之后在手机上用
 
+![电脑连接窗口，模拟配对信息](windows-connector.png)
+
+上图为模拟界面，临时码与二维码不连接真实账户。
+
 Windows 用户下载 [免安装连接器 v0.5.0](../packages/mcd-pickup-handoff-windows-v0.5.0.zip)，解压后双击“麦麦电脑连接器.exe”。无需安装 Python，也不用输入命令。
 
 1. 从 [麦当劳 MCP 平台](https://open.mcd.cn/mcp)取得自己的 Token，粘贴到电脑连接窗口。

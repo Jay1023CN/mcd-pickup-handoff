@@ -22,6 +22,7 @@ FILES = (
     "scripts/mobile_bridge.py", "scripts/mobile_connector.pyw", "打开电脑连接.pyw",
     "scripts/runtime_paths.py", "docs/WINDOWS_CONNECTOR.md", "docs/DEMO_SCRIPT.md",
     "docs/WEB_ARCHITECTURE.md", "docs/PROJECT_LAYOUT.md",
+    "docs/hero.png", "docs/mobile-demo.png", "docs/windows-connector.png",
     "assets/brand/handoff-concept.png", "assets/brand/handoff-mark.svg", "assets/brand/handoff-mark.png", "docs/BRAND.md",
     "scripts/vendor/qrcodegen.py", "scripts/vendor/LICENSE.qrcodegen.txt",
 )
@@ -35,7 +36,14 @@ def main():
             info = ZipInfo(name, date_time=(2026, 10, 9, 0, 0, 0))
             info.compress_type = ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            archive.writestr(info, (ROOT / name).read_bytes())
+            data = (ROOT / name).read_bytes()
+            if name.endswith(".md"):
+                text = data.decode("utf-8")
+                downloads = "https://raw.githubusercontent.com/Jay1023CN/mcd-pickup-handoff/main/packages/"
+                text = text.replace("](../packages/", "](" + downloads).replace("](packages/", "](" + downloads)
+                text = text.replace("](../design-qa.md)", "](https://github.com/Jay1023CN/mcd-pickup-handoff/blob/main/design-qa.md)")
+                data = text.encode("utf-8")
+            archive.writestr(info, data)
     print(output)
 
 
