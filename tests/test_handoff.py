@@ -89,7 +89,7 @@ class CardTests(unittest.TestCase):
 class MCPTests(unittest.TestCase):
     def test_write_tools_are_blocked_before_network(self):
         client = Client("synthetic-local-test-token")
-        for name in ["create-order", "cancel-order", "auto-bind-coupons", "mall-create-order"]:
+        for name in ["create-order", "cancel-order", "auto-bind-coupons", "mall-create-order", "campaign-calendar", "available-coupons"]:
             with patch("mcp_readonly.urlopen") as network:
                 with self.assertRaises(ValueError):
                     client.rpc("tools/call", {"name": name, "arguments": {}})

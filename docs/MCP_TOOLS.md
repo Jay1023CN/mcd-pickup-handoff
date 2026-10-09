@@ -10,7 +10,7 @@
 - [官方接入说明](https://github.com/M-China/mcd-mcp-server#2-快速开始)
 - [官方版本日志](https://github.com/M-China/mcd-mcp-server#4-版本日志)
 
-下文工具名称与用途依据官方说明整理。“读取／计算／写入”描述的是业务作用，不是已验证的 MCP `annotations`。随后于 2026-10-09 已用有效凭据实测本项目使用的五个只读工具及其 tools/list schema；其他工具未实测。完整目录不能当作请求参数契约，开发时仍需读取当前客户端实际 schema。
+下文工具名称与用途依据官方说明整理。“读取／计算／写入”描述的是业务作用，不是已验证的 MCP `annotations`。随后于 2026-10-09 已用有效凭据实测本项目使用的三个只读工具及其 tools/list schema；其他工具未实测。完整目录不能当作请求参数契约，开发时仍需读取当前客户端实际 schema。
 
 ## 接入与认证
 
@@ -97,14 +97,12 @@ Token 对应用户身份和权限；不能将真实 Token 写入仓库、公开�
 
 取餐交接使用 `order-list` 定位候选，再用 `query-order` 核对选定订单，以 `now-time-info` 辅助记录查询时间。`query-nearby-stores` 可查询附近门店，但官方描述不保证能够查询某笔历史订单所属门店的精确地址或营业时间。
 
-麦麦轨迹使用 `order-list` 和必要的 `query-order` 取得实际可获取的历史记录，在本地生成聚合报告。`order-list` 的官方措辞是“近期”，并未承诺一年、全部订单、所有分页或指定月份筛选。`mall-order-list` 虽写明“近一年”，但它查询的是商城订单，不能据此宣称点餐历史覆盖全年。订单完成状态是订单记录，不证明用户已经吃过、实际到访或已取餐。
-
-联名／福利推荐由用户另行选择。`campaign-calendar` 可以读取活动列表，`available-coupons` 可以读取可领券；它们不会自动领取。`auto-bind-coupons` 领取所有当前可领券，须另次明确授权。报告生成不会附带创建订单、取消订单、兑换、抽奖或预约。
+客户端只允许上述三个取餐交接工具，不附带执行创建、取消、领券、兑换、抽奖或预约。
 
 ## 公开文档的边界
 
 官方 1.0.9 日志写明“堂食外带场景下支持返回取餐柜二维码”。工具表没有独立的 `pickup-code`、`handoff`、代取授权、分享凭证或确认取餐工具，也没有明确二维码从哪个工具的哪个字段返回。本项目不能保证每笔订单都有二维码、取餐码、预计取餐时间或制作进度；使用实际返回字段，缺失时如实标注。
 
-五个工具的实际 schema：order-list、available-coupons、now-time-info 无必填参数；query-order 必填 orderId；campaign-calendar 可选 specifiedDate（yyyy-MM-dd）。查询订单只使用本账户已有记录。
+三个工具的实际 schema：order-list、now-time-info 无必填参数；query-order 必填 orderId。查询订单只使用本账户已有记录。
 
-实际验证了商品数量、门店编码和详情实付字段；订单中文状态与文档中数字枚举存在差异，映射说明见 [VALIDATION.md](VALIDATION.md)。未验证完整历史分页、退款含义、联名标记、二维码有效期或跨账户权限；不能从模拟 JSON 推断这些能力。
+实际查询的订单中文状态与文档中数字枚举存在差异，交接卡保留原文，说明见 [VALIDATION.md](VALIDATION.md)。未验证二维码有效期或跨账户权限；不能从模拟 JSON 推断这些能力。

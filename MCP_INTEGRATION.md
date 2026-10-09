@@ -16,8 +16,6 @@
 | `order-list` | 用户没有明确订单标识 | 查找近期到店/外送订单候选，请用户选择正确的到店取餐订单 |
 | `query-order` | 已有标识或选定候选后 | 查询门店、餐品、取餐方式、状态与官方实际返回的凭证 |
 | `now-time-info` | 需要服务器时间时 | 辅助标注状态查询时点；返回不可用时，使用客户端带时区的实际查询时间并明确口径 |
-| `campaign-calendar` | 用户要求在轨迹手账里查看活动 | 读取当月活动日历并保留有效期与来源时间，不把往期或未来活动标成正在进行 |
-| `available-coupons` | 用户要求查询当前可领券 | 展示当前返回的优惠和条件，不领取或自动绑定 |
 
 独立 CLI 实现上述工具的发现和调用。参数来自当前 `tools/list` 返回的 schema，不预置未经验证的参数。不同 Agent 客户端可能给工具增加前缀或将连字符变为下划线，应按实际暴露的名称调用。
 
@@ -32,22 +30,12 @@
 
 ## 操作范围
 
-CLI 以固定白名单限制为上述五个只读 Tool，调用其他 Tool 在发请求之前即被拒绝。Skill 不调用 create-order、cancel-order、积分兑换、领券、地址创建或支付相关操作。生成器不连接网络。全部 33 个公开工具的精确目录见 [MCP_TOOLS.md](docs/MCP_TOOLS.md)。
-
-## 麦麦轨迹调用链
-
-1. 核对年份；按实际 schema 获取 order-list 可返回的订单范围，必要时 query-order 补详情。没有文档依据时不猜分页或日期筛选参数。
-2. 根据真实字段含义规范化本地状态、门店 ID、明确城市、商品份数和已知实付；联名只保留官方或用户明确核验的标签。
-3. 相同订单去重、冲突记录拒绝；只对 completed 状态聚合，取消、待处理、未知分别显示。
-4. 可选只读调用 campaign-calendar / available-coupons，分别记录福利查询时间和官方条件。
-5. python3 scripts/render_footprints.py private/footprints.json --output-prefix private/footprints，生成离线 HTML / TXT / 聚合 JSON。
-
-order-list 只承诺“近期”记录，不保证全年。报告始终展示范围说明；只有确有完整范围依据才能设置 coverage.complete。商城近一年订单属于另一业务，不混入餐品轨迹。订单完成不证明用户吃过或到访过；缺少门店 ID、城市或金额单独标注。
+CLI 以固定白名单限制为上述三个只读 Tool，调用其他 Tool 在发请求之前即被拒绝。Skill 不调用 create-order、cancel-order、积分兑换、领券、地址创建或支付相关操作。生成器不连接网络。全部 33 个公开工具的精确目录见 [MCP_TOOLS.md](docs/MCP_TOOLS.md)。
 
 ## 真实使用状态
 
-**2026-10-09：已完成真实账户 MCP 联调。** initialize / tools/list 成功，now-time-info、order-list、query-order、available-coupons、campaign-calendar 均真实调用成功，并由实际响应生成本地轨迹手账。公开演示仍全部为模拟数据；真实订单、报告和原始响应保存在忽略提交的 private/。凭据只在调用进程内使用，未写入仓库；当前云环境的长期 Secret 绑定尚未配置。
+**2026-10-09：已完成真实账户 MCP 联调。** initialize / tools/list 成功，now-time-info、order-list、query-order 均真实调用成功。公开演示全部为模拟数据；真实订单和原始响应只保存在忽略提交的 private/。当前云环境已通过个人保险库绑定 MCD_MCP_TOKEN，实际请求验证成功；本地 Windows 需要独立配置自己的凭据。
 
-正式报名仍需按官方 Issue 流程提交；本次真实调用已提供技术联调依据，但没有提交报名。WorkBuddy 专项另需实际使用 WorkBuddy 并提供真实脱敏记录；本次使用 Codex，不能伪装成 WorkBuddy 开发。
+正式报名仍需按官方 Issue 流程提交。当前云端 GitHub 集成的 GraphQL 和 REST 创建 Issue 均返回无权限，尚未报名成功。WorkBuddy 专项另需实际使用 WorkBuddy 并提供真实脱敏记录；本次使用 Codex，不能伪装成 WorkBuddy 开发。
 
-未认证的 initialize 尝试曾返回 HTTP 403；随后带有效凭据的握手与上述只读调用成功。未认证失败不能被当作已配置凭据失败。后续连接仍需本地或云环境 Secret MCD_MCP_TOKEN。
+取餐交接仍需用户明确选定订单后核对实际取餐方式；真实查询成功不证明门店保证支持朋友代取。

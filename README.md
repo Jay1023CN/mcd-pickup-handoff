@@ -6,7 +6,7 @@
 
 一个基于麦当劳中国 MCP 的取餐交接 Skill。查询已选定的到店取餐订单，把门店、餐品、取餐方式和官方状态整理成一张交接卡，方便订单本人核对后发送给朋友。
 
-[下载 Skill 安装包 v0.2](packages/mcd-pickup-handoff-v0.2.0.zip) · [取餐卡 HTML](docs/demo.html) · [麦麦轨迹 HTML](docs/footprints.html) · [33 个官方 MCP 接口](docs/MCP_TOOLS.md)
+[下载 Skill 安装包 v0.2.1](packages/mcd-pickup-handoff-v0.2.1.zip) · [取餐卡 HTML](docs/demo.html) · [33 个官方 MCP 接口](docs/MCP_TOOLS.md)
 
 <table>
 <tr><td width="52%" valign="top">
@@ -17,32 +17,6 @@
 <p><small>右图为模拟订单，所有数据均为虚构。</small></p>
 </td><td width="48%"><img src="docs/demo.png" alt="模拟订单交接卡，默认不包含取餐码" width="360"></td></tr>
 </table>
-
-## 新增：麦麦轨迹，把订单翻成一本手账
-
-![麦麦轨迹手绘订单手账的上半页，全部为虚构演示记录](docs/footprints-preview.png)
-
-把实际可获取的历史订单，整理成手绘风格的记录：
-
-| 手账页 | 展示内容 |
-| --- | --- |
-| 月份记录 | 12 个月的已获取完成订单分布；空白月份不代表没消费 |
-| 门店足迹 | 按官方门店 ID 去重；明确城市形成邮票式标签，不编造地图位置 |
-| 联名收集 | 有官方或用户核验依据的联名；分别统计订单数与商品件数 |
-| 餐品记录 | 商品数量排行、已知实付合计和缺失金额笔数 |
-| 福利夹 | 用户要求时只读查询可领券与活动，保留条件和查询时间，不自动领取 |
-
-**完成订单数不等于吃过或到访次数。** 官方 `order-list` 只描述“近期”历史，不保证全年。本页会注明覆盖范围，取消、进行中与未知订单分开显示；缺少门店 ID、城市、实付或联名依据时如实提示。
-
-试一份虚构手账：
-
-```sh
-python3 scripts/render_footprints.py examples/footprints.synthetic.json --output-prefix private/footprints-demo
-```
-
-输出离线 HTML、可复制 TXT 和不含原始订单 ID 的聚合 JSON。图片与字体内嵌；支持复制摘要和浏览器打印 / 保存 PDF。报告含个人门店和城市分布，真实数据应留在 `private/`，分享前自行核对。
-
-[完整模拟手账](docs/footprints.html) · [麦麦轨迹 Skill 流程](skills/mcd-footprints/SKILL.md) · [统计实现](scripts/footprints.py)
 
 ## 目标用户
 
@@ -56,7 +30,7 @@ python3 scripts/render_footprints.py examples/footprints.synthetic.json --output
 - **交接信息清楚**：门店、取餐方式、餐品数量、官方状态和查询时间集中展示。
 - **按需分享凭证**：默认不包含取餐码；用户明确要求才加入文字取餐码。二维码本版不处理。
 - **状态不误导**：原样展示官方状态，并标明查询时点；卡片不会自动刷新，也不保证他人可代取。
-- **只读工具范围**：独立 MCP 客户端允许 `order-list`、`query-order`、`now-time-info`，以及福利夹可选的 `campaign-calendar` / `available-coupons`。不会创建、取消、修改订单或领取优惠券。
+- **只读工具范围**：独立 MCP 客户端允许 `order-list`、`query-order`、`now-time-info`。不会创建、取消、修改订单或领取优惠券。
 
 ## 先看离线演示
 
@@ -76,6 +50,21 @@ python3 scripts/render_card.py examples/order.synthetic.json --output private/de
 python3 scripts/render_card.py examples/order.synthetic.json --output private/demo-with-code --include-pickup-code
 ```
 
+## Windows 本地运行
+
+本地目录：`D:\coding\麦当劳\麦麦取餐交接官`。需要 Git 和 Python 3.10+，无需安装第三方 Python 包。在 PowerShell 执行：
+
+```powershell
+git clone https://github.com/Jay1023CN/mcd-pickup-handoff.git "D:\coding\麦当劳\麦麦取餐交接官"
+Set-Location "D:\coding\麦当劳\麦麦取餐交接官"
+py -3 scripts/render_card.py examples/order.synthetic.json --output private/demo
+Start-Process "private/demo.html"
+```
+
+如果目录已存在，先检查是否为本项目及是否有本地修改，不要覆盖；直接在已有项目中运行。上述页面是明确标注的模拟演示。
+
+要在本机验证真实 MCP，运行 `py -3 scripts/connect_mcp.py --prompt-token`，在隐藏输入中填写自己的 Token。云端个人保险库的绑定不会自动迁移到 Windows。此命令只握手和发现工具；查询并选择订单后，按下面的 MCP 流程生成真实交接卡。
+
 ## 在 WorkBuddy 使用
 
 1. 在 [麦当劳 MCP 平台](https://open.mcd.cn/mcp) 用自己的账户申请 MCP Token。
@@ -90,21 +79,9 @@ python3 scripts/render_card.py examples/order.synthetic.json --output private/de
 
    > 我选的是刚才确认的这笔订单，把文字取餐码放进给朋友的卡片。
 
-   麦麦轨迹也包含在同一安装包中，可以说：
-
-   > 用你实际能查询到的 2026 年订单做一份麦麦轨迹，说明覆盖范围和缺失项。再查一下当前可领券和活动，放进福利夹，先不领取。
-
 工具参数和返回字段以当前连接器 schema 为准；Skill 通过白名单输入生成器输出卡片。真实订单文件和输出保存在忽略的 `private/` 目录。
 
 ## 独立连接官方 MCP
-
-生成真实手账的完整入口（默认不查福利；加 --with-benefits 只读查询券与活动）：
-
-```sh
-python3 scripts/sync_footprints.py --prompt-token --order-offset +08:00 --with-benefits
-```
-
-如果执行环境已绑定 MCD_MCP_TOKEN Secret，可省去 --prompt-token。结果保存在 private/mcp/footprints.html。官方下单时间字段未带偏移，--order-offset 是调用方明确选择的解释；报告保留这项说明。本次服务器时区为 GMT+08:00；不将其冒充原始订单的时区字段。
 
 先到 [官方平台](https://open.mcd.cn/mcp) 申请自己的 Token。已在环境中配置 `MCD_MCP_TOKEN` 时运行：
 
@@ -124,7 +101,7 @@ python3 scripts/connect_mcp.py --prompt-token
 python3 scripts/connect_mcp.py --prompt-token --tool order-list --args-file private/order-list.args.json
 ```
 
-结果仅写入 `private/mcp/order-list.result.json`，终端不打印订单内容。接着按实际 schema 查询必要的 `query-order`，依照对应 Skill 的输入契约生成取餐卡或轨迹。Token 不能发进聊天、GitHub 或公开日志。
+结果仅写入 `private/mcp/order-list.result.json`，终端不打印订单内容。接着按实际 schema 查询必要的 `query-order`，依照对应 Skill 的输入契约生成取餐卡。Token 不能发进聊天、GitHub 或公开日志。
 
 如果本地已经安全配置 `MCD_MCP_TOKEN`，也可以使用只读 CLI：
 
@@ -152,7 +129,7 @@ python3 -m unittest discover -s tests -v
 python3 scripts/package_skill.py
 ```
 
-已完成本地生成器、只读客户端、离线演示和真实 MCP 联调。**2026-10-09 已实际查询订单列表、订单详情、服务器时间、可领券和活动日历，并生成真实本地轨迹；尚未在 WorkBuddy 中开发/验收，尚未提交报名。** 公开示例全部仍为模拟数据，真实响应不公开。详见 [验证记录](docs/VALIDATION.md)。
+已完成本地生成器、只读客户端、离线演示和真实 MCP 联调。**2026-10-09 已实际完成 MCP 握手、工具发现、订单列表、订单详情及服务器时间查询；尚未在 WorkBuddy 中开发/验收，尚未提交报名。** 公开示例全部仍为模拟数据，真实响应不公开。详见 [验证记录](docs/VALIDATION.md)。
 
 ## 参赛材料
 
@@ -169,13 +146,9 @@ SKILL.md                     Skill 工作流程
 scripts/render_card.py       白名单卡片生成器
 scripts/mcp_readonly.py      官方 MCP 只读客户端
 scripts/connect_mcp.py       隐藏输入 Token 的真实连接入口
-scripts/import_mcp_footprints.py 实际 MCP 响应到轨迹输入的字段映射
-scripts/footprints.py        订单范围、去重与聚合统计
-scripts/render_footprints.py 手绘订单手账生成器
 scripts/package_skill.py     安装包生成器
-skills/mcd-footprints/       轨迹与福利的 Skill 流程
 assets/                     原创生成素材、字体与图标许可
-templates/                  两种离线 HTML 布局
+templates/                  取餐卡离线 HTML 布局
 references/                 输入规范与工具说明
 examples/                   明确标注的模拟订单
 tests/                      字段过滤、渲染与 MCP 边界测试

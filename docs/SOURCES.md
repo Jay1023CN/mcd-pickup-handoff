@@ -26,7 +26,6 @@
 ## 视觉素材与许可
 
 - 手绘交接插画、剪贴艺术字、纸张纹理和设计参考由本项目通过 Image Gen 生成；并非麦当劳官方宣传素材。
-- 麦麦轨迹的手写四字标题、地图邮票与快餐纸袋拼贴也由 Image Gen 独立生成；地图仅为装饰，不代表真实用户位置。未把用户提供的聊天截图或聊天者身份放进项目。
 - [Noto Sans SC](https://fonts.google.com/specimen/Noto+Sans+SC) 用于中文界面，[DM Mono](https://fonts.google.com/specimen/DM+Mono) 用于时间与编号；均为 SIL OFL 字体，许可保存在 assets/fonts/。字体按固定界面文字裁剪，动态门店与餐品名缺失的字形使用设备中文字体。
 - [Phosphor Icons](https://github.com/phosphor-icons/core) 的 Bold 图标用于门店、纸袋、时钟和复制动作；MIT 许可保存在 assets/icons/LICENSE.txt。
 - 页面将所需图片、图标和字体内嵌到 HTML，可离线查看；没有外部字体或图片请求。

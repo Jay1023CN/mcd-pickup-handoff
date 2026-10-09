@@ -8,8 +8,6 @@ FILES = (
     "SKILL.md", "README.md", "LICENSE", "CONTEST_DECLARATION.md", "MCP_INTEGRATION.md",
     "mcp-config.example.json", "scripts/render_card.py", "scripts/mcp_readonly.py",
     "scripts/connect_mcp.py",
-    "scripts/import_mcp_footprints.py",
-    "scripts/sync_footprints.py",
     "scripts/visual_assets.py", "templates/card.html",
     "assets/handoff.png", "assets/title.png", "assets/paper.png",
     "assets/fonts/source.css", "assets/fonts/dm-mono-source.css",
@@ -20,15 +18,12 @@ FILES = (
     "assets/icons/storefront.svg", "assets/icons/bag.svg", "assets/icons/clock.svg",
     "assets/icons/clipboard-text.svg", "assets/icons/map-pin.svg", "assets/icons/LICENSE.txt",
     "references/tools.md", "references/input-format.md", "examples/order.synthetic.json",
-    "docs/SOURCES.md", "docs/REGISTRATION.md", "docs/VALIDATION.md", "docs/demo.html", "docs/demo.png", "docs/demo.txt",
-    "scripts/footprints.py", "scripts/render_footprints.py", "templates/footprints.html",
-    "skills/mcd-footprints/SKILL.md", "assets/footprints-collage.png", "assets/footprints-title.png",
-    "examples/footprints.synthetic.json", "docs/MCP_TOOLS.md",
+    "docs/MCP_TOOLS.md", "docs/SOURCES.md", "docs/REGISTRATION.md", "docs/VALIDATION.md", "docs/demo.html", "docs/demo.png", "docs/demo.txt",
 )
 
 
 def main():
-    output = ROOT / "packages/mcd-pickup-handoff-v0.2.0.zip"
+    output = ROOT / "packages/mcd-pickup-handoff-v0.2.1.zip"
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         for name in FILES:
