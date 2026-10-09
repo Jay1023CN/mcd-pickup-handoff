@@ -60,7 +60,8 @@ def render(data: dict[str, Any], include_pickup_code: bool = False) -> tuple[str
     item_lines = [f"{item['name']} × {item['quantity']}" for item in card["items"]]
     if not item_lines:
         item_lines = ["官方返回未提供餐品明细"]
-    code_line = f"取餐码：{card['pickup_code']}" if card["pickup_code"] else "取餐码未包含，请向订单本人获取或查看官方订单页。"
+    missing_code = "暂无取餐码" if include_pickup_code else "取餐码未包含"
+    code_line = f"取餐码：{card['pickup_code']}" if card["pickup_code"] else missing_code + "，请查看官方订单页。"
     summary = "\n".join(["麦麦取餐交接官", label,
                           f"门店：{card['store_name']}",
                           *([f"门店地址：{card['store_address']}"] if card['store_address'] else []),
@@ -72,7 +73,7 @@ def render(data: dict[str, Any], include_pickup_code: bool = False) -> tuple[str
         items_html = "<li>官方返回未提供餐品明细</li>"
     address_html = f"<span class='address'>{escape(card['store_address'])}</span>" if card["store_address"] else ""
     code_html = (f"<div class='credential with-code'><p>仅交给指定代取人</p><strong class='private-code'>{escape(card['pickup_code'])}</strong></div>"
-                 if card["pickup_code"] else "<div class='credential'><strong>取餐码未包含</strong><p>请向订单本人获取，或查看官方订单页。</p></div>")
+                 if card["pickup_code"] else f"<div class='credential'><strong>{missing_code}</strong><p>请查看官方订单页。</p></div>")
     moment = datetime.fromisoformat(card["retrieved_at"].replace("Z", "+00:00"))
     zone = moment.strftime("%z")
     friendly_time = moment.strftime("%Y-%m-%d %H:%M") + " UTC" + zone[:3] + ":" + zone[3:]
@@ -99,7 +100,10 @@ def main() -> None:
     parser.add_argument("--include-pickup-code", action="store_true", help="use only after the owner explicitly agrees")
     args = parser.parse_args()
     try:
-        page, summary = render(json.loads(args.input.read_text(encoding="utf-8")), args.include_pickup_code)
+        data = json.loads(args.input.read_text(encoding="utf-8"))
+        if data.get("source", {}).get("kind") != "synthetic":
+            raise ValueError("真实订单请使用 start-local.cmd 工作台查询；离线 JSON 不能证明 MCP 来源")
+        page, summary = render(data, args.include_pickup_code)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         for suffix, content in [(".html", page), (".txt", summary)]:
             path = args.output.parent / (args.output.name + suffix)

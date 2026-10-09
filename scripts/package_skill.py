@@ -7,8 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = (
     "SKILL.md", "README.md", "LICENSE", "CONTEST_DECLARATION.md", "MCP_INTEGRATION.md",
     "mcp-config.example.json", "scripts/render_card.py", "scripts/mcp_readonly.py",
-    "scripts/connect_mcp.py",
-    "scripts/visual_assets.py", "templates/card.html",
+    "scripts/connect_mcp.py", "scripts/live_app.py", "scripts/live_handoff.py", "start-local.cmd",
+    "scripts/visual_assets.py", "templates/card.html", "templates/workbench.html",
     "assets/handoff.png", "assets/title.png", "assets/paper.png",
     "assets/fonts/source.css", "assets/fonts/dm-mono-source.css",
     "assets/fonts/noto-display-0.ttf", "assets/fonts/noto-display-1.ttf",
@@ -23,7 +23,7 @@ FILES = (
 
 
 def main():
-    output = ROOT / "packages/mcd-pickup-handoff-v0.2.1.zip"
+    output = ROOT / "packages/mcd-pickup-handoff-v0.3.0.zip"
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         for name in FILES:

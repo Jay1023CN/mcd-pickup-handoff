@@ -1,39 +1,29 @@
 # 验证记录
 
-日期：2026-10-09。版本：0.2.1。开发工具：Codex。
+2026-10-09，Windows / Python 3.13.14。
 
-## 当前验证
+## 本地测试
 
-- Python 3.12.14：`python3 -m unittest discover -s tests -v`，16 个取餐交接及 MCP 测试通过。
-- 覆盖默认去除取餐码和非白名单字段、显式加入取餐码、缺失凭证和明细、住宅地址过滤、HTML 注入转义、数量和时区校验、保留取消状态原文、SSE 解析和工具分页。
-- MCP 客户端只允许 order-list、query-order、now-time-info；创建、取消、兑换、领券、活动和优惠查询等其他工具在网络请求前被拒绝。
-- 离线生成器输出明确标注模拟订单的 HTML/TXT；图片与字体内嵌，不需要第三方 Python 包。
-- Skill 安装包顶层为 SKILL.md，包含取餐卡所需脚本、引用和素材；不包含 private/、缓存、真实订单或凭据。
-- CONTEST_DECLARATION.md 与官方原文逐字节相同。
+运行 `py -3 -X utf8 -m unittest discover -s tests -q`，42 项测试通过。覆盖字段过滤、HTML 转义、数量和时区验证、凭据读取、只读工具限制、官方业务失败、候选绑定、取餐方式识别、历史订单阻止生成、默认取餐码及缺失码、签名和本机记录篡改、十分钟有效期、订单内容变化、查询失败、重启后的校验，以及 HTTP 会话、来源和字段注入检查。
 
-## 真实 MCP 联调（不含账户内容）
+离线 JSON 生成器拒绝伪造的 `mcp` 来源标记。工作台默认带上官方返回的文字取餐码，支持取消勾选隐藏；缺失时显示“暂无取餐码”。
 
-2026-10-09 在实际云环境完成 initialize、tools/list，以及 now-time-info、order-list、query-order 的真实只读调用。业务响应 success 已核查。凭据通过个人保险库绑定，仅用于官方 MCP HTTPS 请求；Token 不写入源码或响应文件。真实返回保存在忽略的 private/，公开演示保持 synthetic。
+## 真实账户
 
-query-order 实际返回的 orderStatus 为中文状态，和文档描述的数字枚举存在差异。交接卡保留官方状态原文，不自行映射为“已备好”或“可代取”。
+本机实际完成 initialize、tools/list、now-time-info、order-list 和 query-order，业务查询成功。工具发现返回 35 个工具；应用只调用三个只读工具。
 
-## 已有浏览器验证
+账户内十笔订单为九笔外送、一笔到店，均已完成。到店详情与列表的订单和门店绑定一致，官方返回了文字取餐码。工作台展示真实门店、餐品、方式、状态和查询时间，并阻止历史订单生成新的取餐交接卡。
 
-取餐卡此前在 Chromium / Playwright 的 320、375、390、520、768px 宽度下验证无横向溢出；长门店和餐品名可换行；图片、字体加载和复制按钮的手动回退正常。docs/demo.png 来自明确标注的模拟页面。此次删除扩展功能未修改取餐卡模板与视觉素材。视觉记录见 [design-qa.md](../design-qa.md)。
+真实响应保存在忽略的 `private/`；凭据保存在忽略的 `.env`。不在此文记录门店、餐品、取餐码或订单编号。
 
-## Windows 本机验证
+## 浏览器流程
 
-- 2026-10-09，Python 3.13.14，在 `D:\Coding\麦当劳\麦麦取餐交接官` 运行 19 项测试全部通过，生成 HTML/TXT 模拟交接卡。
-- 修复测试默认使用 GBK 读取 UTF-8 示例的问题；本地续办启动脚本为子进程启用 UTF-8。
-- 支持从项目根目录 `.env` 读取 MCD_MCP_TOKEN，环境变量优先。覆盖配置优先级、BOM/引号、缺失配置以及不执行任意配置内容的测试。
-- 本机真实 initialize、tools/list、now-time-info、order-list 成功；两个业务查询的 success 均为 true。未生成任何声称可实际代取的订单卡片。
-- `git check-ignore .env` 确认凭据被忽略；真实响应只写入 private/。
-- 通过本机登录提交官方报名 [Issue #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)，等待官方资格确认。
+Chromium / Playwright 在本机验证真实订单列表与历史详情，390px 宽度无横向溢出。完整创建、默认带码、隐藏码、HTML/TXT 下载、记录复查、篡改拒绝和订单完成后的失效流程使用模拟接口验证；未将模拟结果描述为实际取餐成功。
 
-## 尚未验证或完成
+公开 `docs/demo.html`、`docs/demo.txt` 和截图全部来自虚构订单。之前卡片在 320、375、390、520、768px 宽度的布局记录见 [design-qa.md](../design-qa.md)。
 
-- 未验证用户明确选定的一笔到店订单的完整实际交接、门店代取条件、凭证有效期和状态实时变化。
-- 未在 WorkBuddy 实际导入或完成对话验收，没有生成 workbuddy.md。
-- 官方报名已提交，尚未收到系统成功/失败回复。
+## 交付检查
 
-进一步验证时只记录日期、工具和脱敏结果，不记录 Token、取餐码、电话、住址、完整订单 ID 或原始响应。
+安装包通过文件白名单生成，不包含 `.env`、`private/`、本机签名密钥、会话密钥、缓存或真实响应。官方 `CONTEST_DECLARATION.md` 保持原文。公开 GitHub Pages 仅展示模拟卡片。
+
+报名 #128 已由官方账号回复成功参赛。尚无实际待取餐订单从生成到门店交接的验收，尚未在 WorkBuddy 开发或验收，也未创建虚构的 workbuddy.md。

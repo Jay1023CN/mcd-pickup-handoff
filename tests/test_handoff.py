@@ -35,7 +35,7 @@ class CardTests(unittest.TestCase):
     def test_missing_code_is_not_invented(self):
         del self.data["pickup_code"]
         _, text = render(self.data, include_pickup_code=True)
-        self.assertIn("取餐码未包含", text)
+        self.assertIn("暂无取餐码", text)
 
     def test_residential_or_untyped_address_is_omitted(self):
         for kind in ["residential", None]:

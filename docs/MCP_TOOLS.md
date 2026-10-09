@@ -12,6 +12,10 @@
 
 下文工具名称与用途依据官方说明整理。“读取／计算／写入”描述的是业务作用，不是已验证的 MCP `annotations`。随后于 2026-10-09 已用有效凭据实测本项目使用的三个只读工具及其 tools/list schema；其他工具未实测。完整目录不能当作请求参数契约，开发时仍需读取当前客户端实际 schema。
 
+## 实际工具发现补充
+
+2026-10-09 本机实际 `tools/list` 返回 35 个工具，比公开表多出 `query-survey-coupon` 和 `query-promotions`。实际工具名为 `query-party-store-date` / `query-party-store-session`，公开表的名称写法不同。其他工具只读取目录，未调用业务操作。应用按实际 schema 校验三个使用工具。
+
 ## 接入与认证
 
 | 项目 | 官方说明 |

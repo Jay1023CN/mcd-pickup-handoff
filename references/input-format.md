@@ -1,34 +1,21 @@
-# 交接卡的规范化输入
+# 输入与交接记录
 
-本格式是本地生成器的输入，**不是官方 query-order 原始 JSON schema**。Agent 读取真实工具返回后，明确映射字段；无法辨认或缺失的内容不猜测。source.kind 的标记由调用者提供，生成器本身不认证其真实性。
+## 真实订单
+
+真实卡片通过 `HandoffService` 直接查询官方 MCP 生成，不接受手写 JSON 声称 `source.kind=mcp`。工作台 API 只接受临时选择标识及取餐码开关：
 
 ```json
-{
-  "source": {
-    "kind": "mcp",
-    "tool": "query-order",
-    "retrieved_at": "2026-10-09T17:30:00+08:00"
-  },
-  "is_store_pickup": true,
-  "store": {
-    "name": "来自订单的门店名称",
-    "address": "来自门店字段的餐厅地址（可省略）",
-    "address_kind": "restaurant"
-  },
-  "pickup_mode": "来自官方返回的取餐方式",
-  "status_text": "来自官方返回的状态原文",
-  "items": [{"name": "来自官方返回的餐品名称", "quantity": 1}],
-  "pickup_code": "只有官方实际返回时才填写（可省略）"
-}
+{"selection":"从本次订单列表获得的标识","include_pickup_code":true}
 ```
 
-- 示例中的内容均为字段说明；不能直接当作真实订单渲染。实际数据保存在 `private/handoff.json`。
-- source.kind 只接受 `mcp` 或 `synthetic`。离线示例用后者，页面有演示标签。
-- retrieved_at 必须是带时区的实际查询时间。即使查的是已取消订单，也要原样保留状态，不能自动转换为已备好。
-- is_store_pickup 必须是在查看真实订单之后明确确认的 true；不能靠设置 true 把外送单变为到店单。
-- 地址只在 address_kind 为 restaurant 时输出；Agent 必须确认来自餐厅字段，不能把收货地址放入此字段。
-- items 可为空，此时页面明确显示官方未提供明细；数量须为正整数，不允许自行估算。
-- pickup_code 默认不输出。使用 --include-pickup-code 前取得这笔订单本人的明确分享意愿。没有凭证时，仍标注“取餐码未包含”。
-- 不支持二维码、配送地址、姓名、手机号、付款链接、备注、订单 ID 或任意原始字段透传。
+前端不能提供门店、状态或取餐码。服务根据实际 `query-order` 字段创建规范化快照，以 HMAC 签署记录；原始订单绑定只保存在本机。复查请求为 `{"receipt":交接记录}`，有效期十分钟。
 
-默认卡片省略结构化敏感字段，并不是任意文本自动脱敏器。错误地把电话号码写成门店名等白名单字段仍可能泄露；真实字段映射和发送前核对由调用者负责。
+默认包含官方文字取餐码，传 `false` 可隐藏；官方缺失时显示“暂无取餐码”。姓名、手机、付款链接、配送地址、订单编号、备注和二维码不进入输出。
+
+## 离线演示
+
+`scripts/render_card.py` 命令行仅接受 `source.kind=synthetic` 的模拟输入，见 [examples/order.synthetic.json](../examples/order.synthetic.json)。页面和文字显示“离线演示 · 模拟订单”。演示码用 `--include-pickup-code` 显示。
+
+内部规范化字段为 `source.kind/tool/retrieved_at`、`is_store_pickup`、`store.name/address/address_kind`、`pickup_mode`、`status_text`、`items[].name/quantity` 和可选 `pickup_code`。其中数量须为正整数，时间须包含时区，地址只接受 `restaurant`。这不是官方原始响应 schema。
+
+内部渲染函数供可信查询服务使用；给任意 JSON 填上 `mcp` 不会使它获得来源证明。离线卡片可被编辑，验真需在生成服务中复查签署记录，并逐项对照刚查询的内容。

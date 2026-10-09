@@ -1,43 +1,34 @@
 # 麦当劳 MCP 接入与业务流程
 
-## Server
+官方服务为 `https://mcp.mcd.cn`，使用 Streamable HTTP 和 Bearer Token。[官方说明](https://github.com/M-China/mcd-mcp-server)
 
-- 官方服务：麦当劳中国 MCP Server
-- 端点：`https://mcp.mcd.cn`
-- 传输：Streamable HTTP，认证：本地配置的 Bearer Token
-- 官方说明：https://github.com/M-China/mcd-mcp-server
-- 配置示例：[mcp-config.example.json](mcp-config.example.json)
-- 实际连接入口：`python3 scripts/connect_mcp.py`，优先读取环境变量 MCD_MCP_TOKEN，其次读取被 Git 忽略的项目根目录 `.env`；或在本地终端加 `--prompt-token` 隐藏输入，仅保存在进程内存。
+本机凭据优先读取 `MCD_MCP_TOKEN` 环境变量，其次读取项目根目录 `.env`。Token 不传给浏览器。工作台只监听 `127.0.0.1`，每次启动生成独立会话密钥；接口校验 Host、Origin、会话密钥和请求字段。
 
-## 实现的 Tool 使用流程
+## 实际调用链
 
-| 官方 Tool | 使用时机 | 在本作品中的价值 |
+| 阶段 | 调用 | 校验与输出 |
 | --- | --- | --- |
-| `order-list` | 用户没有明确订单标识 | 查找近期到店/外送订单候选，请用户选择正确的到店取餐订单 |
-| `query-order` | 已有标识或选定候选后 | 查询门店、餐品、取餐方式、状态与官方实际返回的凭证 |
-| `now-time-info` | 需要服务器时间时 | 辅助标注状态查询时点；返回不可用时，使用客户端带时区的实际查询时间并明确口径 |
+| 列表 | initialize → tools/list → order-list → now-time-info | 当前工具契约、账户内候选及查询时间；前端只拿到临时选择标识 |
+| 详情 | query-order → now-time-info | 订单编号与候选一致、门店匹配、确认为到店订单；展示官方状态原文 |
+| 生成 | 再次 query-order → now-time-info | 最新状态属于已识别的配餐中状态，字段有效后生成卡片和记录 |
+| 下载和复查 | 校验记录 → query-order → now-time-info | 检查十分钟有效期、记录完整性与最新订单内容；变化时停止使用旧卡 |
 
-独立 CLI 实现上述工具的发现和调用。参数来自当前 `tools/list` 返回的 schema，不预置未经验证的参数。不同 Agent 客户端可能给工具增加前缀或将连字符变为下划线，应按实际暴露的名称调用。
+读取列表与详情中的 `orderId`、`storeName` 来绑定候选。餐厅地址来自 `storeAddress`，取餐方式来自 `takeWay`，餐品来自 `orderProductList[].productName/quantity`，状态来自 `orderStatus`，取餐码来自 `pickupCode`。`deliveryInfo` 非空时拒绝到店交接。
 
-## 调用链
+实际返回的 `orderStatus` 可为中文原文，也可为 schema 描述的数字枚举。另一个 `status` 字段未获得明确映射，不拿它猜订单状态。未识别的状态和取餐方式不生成交接卡。查询时间是本机完成详情请求的带时区时间；服务器 UTC 另作辅助记录。
 
-1. MCP initialize → notifications/initialized → tools/list。
-2. 用户提供标识：query-order；标识不明：order-list → 用户选定 → query-order。
-3. 核对是到店取餐；保留官方状态原文，无法确认时停止生成。
-4. 从实际返回提取白名单字段到本地规范化输入；不要传播完整原始响应。
-5. 本地生成 HTML / TXT；仅用户明确要求时加入文字取餐码。
-6. 用户核对并自行交给朋友。卡片不会代替官方取餐资格检查。
+取餐码默认加入，用户可隐藏。缺失时显示“暂无取餐码”。不传播完整响应、配送住址、订单编号、手机号码、支付字段或备注。
 
-## 操作范围
+## 记录与复查
 
-CLI 以固定白名单限制为上述三个只读 Tool，调用其他 Tool 在发请求之前即被拒绝。Skill 不调用 create-order、cancel-order、积分兑换、领券、地址创建或支付相关操作。生成器不连接网络。全部 33 个公开工具的精确目录见 [MCP_TOOLS.md](docs/MCP_TOOLS.md)。
+服务用本机随机 HMAC-SHA256 密钥签署规范化交接记录。实际订单绑定另存于 `private/handoffs/`，下载的记录不含订单编号。复查先验证签名和原始记录，再向官方查询，比对最新字段，并显示本次查到的内容供用户对照。
 
-## 真实使用状态
+本机签名是该服务的完整性校验，不能当作官方签名。HTML、文字和截图可被编辑，单独拿着它们无法验真；配套记录需回到生成它的本机服务复查。本机地址不提供异地访问。
 
-**2026-10-09：已完成真实账户 MCP 联调。** initialize / tools/list 成功，now-time-info、order-list、query-order 均真实调用成功。公开演示全部为模拟数据；真实订单和原始响应只保存在忽略提交的 private/。当前云环境已通过个人保险库绑定 MCD_MCP_TOKEN，实际请求验证成功；本地 Windows 需要独立配置自己的凭据。
+## 工具范围与实测
 
-2026-10-09 Windows 本机进一步完成 initialize、tools/list、now-time-info 和 order-list；两个业务查询均返回 success=true。只记录脱敏结果，原始响应保存在被忽略的 private/。本机凭据保存在被忽略的 `.env`，不打包或上传。
+客户端只允许 `order-list`、`query-order`、`now-time-info`。写入工具在网络请求前拒绝。2026-10-09 实际 `tools/list` 返回 35 个工具，公开 README 表列出 33 个；差异见 [工具目录](docs/MCP_TOOLS.md)。
 
-报名申请已由本机 GitHub 登录提交：[官方 Issue #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)。提交不等于资格确认，当前等待官方回复。WorkBuddy 专项另需实际使用 WorkBuddy 并提供真实脱敏记录；本次使用 Codex，不能伪装成 WorkBuddy 开发。
+本机实际完成握手、工具发现、服务器时间、订单列表和到店订单详情查询，业务 `success=true`。账户内十笔订单均已完成，历史订单被工作台拒绝生成。完整的配餐中订单生成和状态变化流程使用模拟接口测试，尚无实际待取餐订单的门店交接记录。详情见 [验证记录](docs/VALIDATION.md)。
 
-取餐交接仍需用户明确选定订单后核对实际取餐方式；真实查询成功不证明门店保证支持朋友代取。
+报名已获官方成功参赛回复：[官方 Issue #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)。WorkBuddy 尚未验收，没有虚构对话记录。
