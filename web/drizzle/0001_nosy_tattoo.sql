@@ -1,0 +1,3 @@
+CREATE INDEX `mobile_jobs_cleanup_idx` ON `mobile_jobs` (`expires_at`) WHERE "mobile_jobs"."state" IN ('done','failed') AND "mobile_jobs"."result" IS NOT NULL;--> statement-breakpoint
+CREATE INDEX `mobile_rate_limits_cleanup_idx` ON `mobile_rate_limits` (`expires_at`);--> statement-breakpoint
+CREATE INDEX `mobile_shares_cleanup_idx` ON `mobile_shares` (`expires_at`) WHERE "mobile_shares"."verified" != 0 OR json_extract("mobile_shares"."card", '$.pickup_code') != '';

@@ -29,3 +29,9 @@
 - [Noto Sans SC](https://fonts.google.com/specimen/Noto+Sans+SC) 用于中文界面，[DM Mono](https://fonts.google.com/specimen/DM+Mono) 用于时间与编号；均为 SIL OFL 字体，许可保存在 assets/fonts/。字体按固定界面文字裁剪，动态门店与餐品名缺失的字形使用设备中文字体。
 - [Phosphor Icons](https://github.com/phosphor-icons/core) 的 Bold 图标用于门店、纸袋、时钟和复制动作；MIT 许可保存在 assets/icons/LICENSE.txt。
 - 页面将所需图片、图标和字体内嵌到 HTML，可离线查看；没有外部字体或图片请求。
+
+## 桌面配对二维码
+
+- 使用 [Project Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) 的纯 Python 模块，固定来源提交为 `3c6d0b3cefb4e049dc337e82237c9644399716a8`。上游为 MIT 许可，原源码与完整版权声明保存在 `scripts/vendor/qrcodegen.py`；独立许可副本为 `scripts/vendor/LICENSE.qrcodegen.txt`。
+- 本地源码与 [该提交的官方原文件](https://raw.githubusercontent.com/nayuki/QR-Code-generator/3c6d0b3cefb4e049dc337e82237c9644399716a8/python/qrcodegen.py) 字节一致，SHA-256 为 `9f4ed1dd201dcb92b1bc0d6e14f46c754bcff0ce48580c5d7e8ace8f6926c8ef`，未修改上游模块。
+- 配对链接在电脑上编码，Tk 原生显示二维码；无需额外安装 Python 包，也不会把配对码或 MCP Token 发送给二维码服务。

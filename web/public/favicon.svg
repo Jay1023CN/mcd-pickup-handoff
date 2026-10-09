@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title">
+  <title id="title">麦麦取餐交接官</title>
+  <rect x="8" y="8" width="184" height="184" rx="43" fill="#B92D22"/>
+  <path d="M68 66c0-25 13-40 33-40s34 15 34 40" fill="none" stroke="#FFF9E9" stroke-width="12" stroke-linecap="round"/>
+  <path d="M64 64h76c7 0 11 5 12 12l13 78c2 10-4 16-14 17l-78 8c-11 1-17-4-16-14l3-90c0-7 1-11 4-11Z" fill="#FFF9E9"/>
+  <path d="m56 72-24 80c-2 6 0 10 5 13l14 8 8-77c1-11 0-18-3-24Z" fill="#FFF9E9"/>
+  <path d="M64 121c20 18 48 16 70-6l-11-3c-6-2-7-9-1-12l25-10c5-2 9 1 9 6l1 29c0 6-7 9-11 4l-4-6c-24 27-54 31-79 17Z" fill="#F4B928"/>
+</svg>

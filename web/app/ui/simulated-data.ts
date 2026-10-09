@@ -1,0 +1,3 @@
+import { Card, Order } from "./mobile-api";
+export function demoCard(): Card { return { store_name: "麦当劳 · 示例广场店", store_address: "示例市示例路 88 号，一层入口旁", pickup_mode: "外带", status_text: "配餐中", retrieved_at: new Date().toISOString(), items: [{ name: "巨无霸套餐", quantity: 1 }, { name: "麦乐鸡（5块）", quantity: 1 }, { name: "香芋派", quantity: 2 }], pickup_code: "A008" }; }
+export const demoOrders: Order[] = [{ selection: "simulated-active", store_name: "麦当劳 · 示例广场店", status_text: "配餐中", created_at: "刚刚 · 模拟订单", is_pickup: true }, { selection: "simulated-closed", store_name: "麦当劳 · 示例公园店", status_text: "订单已完成", created_at: "昨天 · 模拟订单", is_pickup: true }, { selection: "simulated-delivery", store_name: "麦当劳 · 示例街店", status_text: "配送中", created_at: "今天 · 模拟订单", is_pickup: false }];

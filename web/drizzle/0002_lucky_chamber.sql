@@ -1,0 +1,2 @@
+CREATE INDEX `mobile_jobs_share_result_idx` ON `mobile_jobs` (`owner_id`,`device_id`,`action`,`state`,`created_at`);--> statement-breakpoint
+CREATE INDEX `mobile_shares_owner_history_idx` ON `mobile_shares` (`owner_id`,`expires_at`);

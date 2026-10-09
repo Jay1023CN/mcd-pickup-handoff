@@ -259,6 +259,21 @@ class HandoffService:
             raise HandoffError("交接记录已过期，不能导出旧卡片。")
         return render(payload["snapshot"], payload["include_pickup_code"])
 
+    def load_receipt(self, record_id: str) -> dict:
+        """Load a bridge-owned record without accepting an arbitrary path/order."""
+        if not isinstance(record_id, str) or not re.fullmatch(r"[a-f0-9]{32}", record_id):
+            raise HandoffError("交接记录标识无效。")
+        try:
+            envelope = json.loads((self.directory / (record_id + ".json")).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise HandoffError("找不到这笔交接记录，请重新生成链接。") from None
+        if not self._valid_seal(envelope):
+            raise HandoffError("本机交接记录校验失败。")
+        receipt = envelope["payload"].get("receipt")
+        if not self._valid_seal(receipt) or receipt["payload"].get("record_id") != record_id:
+            raise HandoffError("交接记录与本机原始记录不一致。")
+        return receipt
+
     def card_text(self, receipt: dict) -> str:
         return self._render_receipt(receipt)[1]
 

@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791559784513,
+      "tag": "0000_short_saracen",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791560375259,
+      "tag": "0001_nosy_tattoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791561022862,
+      "tag": "0002_lucky_chamber",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791561178689,
+      "tag": "0003_majestic_raza",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791562034835,
+      "tag": "0004_owner_sessions",
+      "breakpoints": true
+    }
+  ]
+}
