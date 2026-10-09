@@ -20,7 +20,7 @@
 2026-10-09 状态：
 
 - 公开仓库、必需文件和真实 MCP 连接已验证。
-- 已尝试通过 GitHub GraphQL 与 REST 创建报名 Issue，均返回当前集成无权限；尚未报名成功。可在有权限的本地 GitHub 登录下提交上述正文，随后检查官方回复。
+- 已通过本机 Jay1023CN 登录提交 [官方报名 Issue #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)，中文仓库简介也已更新。当前等待官方成功/失败通知；不要重复提交。
 - 到店交接仍需用户选定订单后核对实际取餐方式；真实凭据、订单与取餐码不公开。
 - WorkBuddy 是专项奖励条件；当前未在 WorkBuddy 中实际开发或验收，不提交虚构的 workbuddy.md。
 

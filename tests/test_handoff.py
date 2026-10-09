@@ -3,19 +3,20 @@ import io
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from render_card import normalize, render
-from mcp_readonly import Client, decode_sse
+from mcp_readonly import Client, decode_sse, read_token
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class CardTests(unittest.TestCase):
     def setUp(self):
-        self.data = json.loads((ROOT / "examples/order.synthetic.json").read_text())
+        self.data = json.loads((ROOT / "examples/order.synthetic.json").read_text(encoding="utf-8"))
 
     def test_default_omits_credentials_and_original_private_fields(self):
         page, text = render(self.data)
@@ -87,6 +88,23 @@ class CardTests(unittest.TestCase):
 
 
 class MCPTests(unittest.TestCase):
+    def test_environment_token_takes_precedence(self):
+        with patch.dict("os.environ", {"MCD_MCP_TOKEN": "environment-test-token"}):
+            self.assertEqual(read_token(ROOT / "missing-env-file"), "environment-test-token")
+
+    def test_local_env_reads_only_token_and_does_not_execute_values(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict("os.environ", {}, clear=True):
+            path = Path(directory) / ".env"
+            path.write_text('# 本地配置\nOTHER=$(never-run)\nMCD_MCP_TOKEN="local-test-token"\n', encoding="utf-8-sig")
+            self.assertEqual(read_token(path), "local-test-token")
+
+    def test_missing_or_unrelated_env_has_no_token(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict("os.environ", {}, clear=True):
+            path = Path(directory) / ".env"
+            self.assertEqual(read_token(path), "")
+            path.write_text('OTHER=value\n# MCD_MCP_TOKEN=ignored\n', encoding="utf-8")
+            self.assertEqual(read_token(path), "")
+
     def test_write_tools_are_blocked_before_network(self):
         client = Client("synthetic-local-test-token")
         for name in ["create-order", "cancel-order", "auto-bind-coupons", "mall-create-order", "campaign-calendar", "available-coupons"]:

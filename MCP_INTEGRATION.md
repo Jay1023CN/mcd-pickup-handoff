@@ -7,7 +7,7 @@
 - 传输：Streamable HTTP，认证：本地配置的 Bearer Token
 - 官方说明：https://github.com/M-China/mcd-mcp-server
 - 配置示例：[mcp-config.example.json](mcp-config.example.json)
-- 实际连接入口：`python3 scripts/connect_mcp.py`，读取环境变量 MCD_MCP_TOKEN；或在本地终端加 `--prompt-token` 隐藏输入，仅保存在进程内存。
+- 实际连接入口：`python3 scripts/connect_mcp.py`，优先读取环境变量 MCD_MCP_TOKEN，其次读取被 Git 忽略的项目根目录 `.env`；或在本地终端加 `--prompt-token` 隐藏输入，仅保存在进程内存。
 
 ## 实现的 Tool 使用流程
 
@@ -36,6 +36,8 @@ CLI 以固定白名单限制为上述三个只读 Tool，调用其他 Tool 在�
 
 **2026-10-09：已完成真实账户 MCP 联调。** initialize / tools/list 成功，now-time-info、order-list、query-order 均真实调用成功。公开演示全部为模拟数据；真实订单和原始响应只保存在忽略提交的 private/。当前云环境已通过个人保险库绑定 MCD_MCP_TOKEN，实际请求验证成功；本地 Windows 需要独立配置自己的凭据。
 
-正式报名仍需按官方 Issue 流程提交。当前云端 GitHub 集成的 GraphQL 和 REST 创建 Issue 均返回无权限，尚未报名成功。WorkBuddy 专项另需实际使用 WorkBuddy 并提供真实脱敏记录；本次使用 Codex，不能伪装成 WorkBuddy 开发。
+2026-10-09 Windows 本机进一步完成 initialize、tools/list、now-time-info 和 order-list；两个业务查询均返回 success=true。只记录脱敏结果，原始响应保存在被忽略的 private/。本机凭据保存在被忽略的 `.env`，不打包或上传。
+
+报名申请已由本机 GitHub 登录提交：[官方 Issue #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)。提交不等于资格确认，当前等待官方回复。WorkBuddy 专项另需实际使用 WorkBuddy 并提供真实脱敏记录；本次使用 Codex，不能伪装成 WorkBuddy 开发。
 
 取餐交接仍需用户明确选定订单后核对实际取餐方式；真实查询成功不证明门店保证支持朋友代取。

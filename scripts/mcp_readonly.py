@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Minimal read-only Streamable HTTP client for the official McDonald's MCP.
 
-Read credentials from MCD_MCP_TOKEN, never from a command argument. Tool results
+Read credentials from MCD_MCP_TOKEN or the local .env, never a command argument. Tool results
 may contain personal order data; redirect them to the ignored private directory.
 """
 from __future__ import annotations
@@ -16,6 +16,24 @@ from urllib.request import Request, urlopen
 
 ENDPOINT = "https://mcp.mcd.cn"
 READ_TOOLS = frozenset({"order-list", "query-order", "now-time-info"})
+
+
+def read_token(env_file: Path | None = None) -> str:
+    """Read only the token key; never execute or export .env contents."""
+    token = os.environ.get("MCD_MCP_TOKEN", "").strip()
+    if token:
+        return token
+    path = env_file if env_file is not None else Path(__file__).resolve().parents[1] / ".env"
+    if not path.is_file():
+        return ""
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        key, separator, value = line.strip().partition("=")
+        if separator and key.strip() == "MCD_MCP_TOKEN":
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            return value.strip()
+    return ""
 
 
 def decode_sse(response: Any, request_id: int) -> dict[str, Any]:
@@ -118,7 +136,7 @@ def main() -> None:
             arguments = json.loads(args.args_file.read_text(encoding="utf-8"))
             if not isinstance(arguments, dict):
                 raise ValueError("tool arguments must be a JSON object")
-        client = Client(os.environ.get("MCD_MCP_TOKEN", ""))
+        client = Client(read_token())
         client.initialize()
         tools = client.tools()
         if args.command == "tools":

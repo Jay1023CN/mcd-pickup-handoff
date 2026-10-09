@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 from urllib.error import HTTPError, URLError
 
-from mcp_readonly import Client, ENDPOINT, READ_TOOLS
+from mcp_readonly import Client, ENDPOINT, READ_TOOLS, read_token
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'private/mcp'
@@ -34,7 +34,10 @@ def main():
     args = parser.parse_args()
     if bool(args.tool) != bool(args.args_file):
         parser.error('--tool and --args-file must be used together')
-    token = os.environ.get('MCD_MCP_TOKEN', '').strip()
+    try:
+        token = read_token()
+    except (OSError, UnicodeError):
+        parser.exit(2, 'Could not read the local .env file.\n')
     if not token and args.prompt_token:
         if not sys.stdin.isatty():
             parser.exit(2, 'Run --prompt-token in your local terminal, or configure the MCD_MCP_TOKEN environment secret.\n')
@@ -43,7 +46,7 @@ def main():
         except (EOFError, KeyboardInterrupt):
             parser.exit(2, '\nToken entry cancelled.\n')
     if not token or token.startswith('${'):
-        parser.exit(2, 'Missing MCD_MCP_TOKEN. Obtain your Token at https://open.mcd.cn/mcp, then configure the environment secret or run --prompt-token locally.\n')
+        parser.exit(2, 'Missing MCD_MCP_TOKEN. Configure the environment or project .env, or run --prompt-token locally.\n')
     # Parse explicit arguments before any network activity.
     try:
         arguments = json.loads(args.args_file.read_text(encoding='utf-8')) if args.args_file else None

@@ -6,7 +6,11 @@
 
 一个基于麦当劳中国 MCP 的取餐交接 Skill。查询已选定的到店取餐订单，把门店、餐品、取餐方式和官方状态整理成一张交接卡，方便订单本人核对后发送给朋友。
 
-[下载 Skill 安装包 v0.2.1](packages/mcd-pickup-handoff-v0.2.1.zip) · [取餐卡 HTML](docs/demo.html) · [33 个官方 MCP 接口](docs/MCP_TOOLS.md)
+[在线体验模拟交接卡](https://jay1023cn.github.io/mcd-pickup-handoff/) · [下载 Skill 安装包 v0.2.1](packages/mcd-pickup-handoff-v0.2.1.zip) · [官方报名 #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)
+
+在线演示无需登录、Token 或安装，数据全部为虚构；点击“复制交接文字”体验给朋友的信息。真实订单只在本地处理。
+
+如果这个场景对你有用，欢迎在仓库右上角点 **Star**，也欢迎提交使用反馈。作品参加麦当劳程序员创意开发大赛，按公开 Star 排名；报名申请已提交，等待官方确认。
 
 <table>
 <tr><td width="52%" valign="top">
@@ -64,6 +68,8 @@ Start-Process "private/demo.html"
 如果目录已存在，先检查是否为本项目及是否有本地修改，不要覆盖；直接在已有项目中运行。上述页面是明确标注的模拟演示。
 
 要在本机验证真实 MCP，运行 `py -3 scripts/connect_mcp.py --prompt-token`，在隐藏输入中填写自己的 Token。云端个人保险库的绑定不会自动迁移到 Windows。此命令只握手和发现工具；查询并选择订单后，按下面的 MCP 流程生成真实交接卡。
+
+也可以在项目根目录创建 `.env`，写入 `MCD_MCP_TOKEN=你的Token`，然后运行 `py -3 scripts/connect_mcp.py`。`.env` 已被 Git 忽略，安装包也不会包含它。客户端优先读取环境变量，其次读取项目根目录 `.env`；两种配置都不会把凭据输出到终端。
 
 ## 在 WorkBuddy 使用
 
@@ -129,11 +135,11 @@ python3 -m unittest discover -s tests -v
 python3 scripts/package_skill.py
 ```
 
-已完成本地生成器、只读客户端、离线演示和真实 MCP 联调。**2026-10-09 已实际完成 MCP 握手、工具发现、订单列表、订单详情及服务器时间查询；尚未在 WorkBuddy 中开发/验收，尚未提交报名。** 公开示例全部仍为模拟数据，真实响应不公开。详见 [验证记录](docs/VALIDATION.md)。
+已完成本地生成器、只读客户端、离线演示和真实 MCP 联调。**2026-10-09 云端已完成订单详情查询；Windows 本机完成 MCP 握手、工具发现、订单列表及服务器时间查询，19 项测试通过。报名 #128 已提交，等待官方回复；尚未在 WorkBuddy 中开发/验收。** 公开示例全部仍为模拟数据，真实响应不公开。详见 [验证记录](docs/VALIDATION.md)。
 
 ## 参赛材料
 
-仓库包含 `README.md`、官方原版 `CONTEST_DECLARATION.md`、`MCP_INTEGRATION.md`、环境变量配置示例和可运行内容。真实 MCP 联调已完成，报名草稿待提交；申请 WorkBuddy 专项奖励还需要真实使用 WorkBuddy 并导出脱敏对话为根目录 `workbuddy.md`，本仓库不生成虚构对话。
+仓库包含 `README.md`、官方原版 `CONTEST_DECLARATION.md`、`MCP_INTEGRATION.md`、环境变量配置示例和可运行内容。真实 MCP 联调已完成，报名申请已提交；申请 WorkBuddy 专项奖励还需要真实使用 WorkBuddy 并导出脱敏对话为根目录 `workbuddy.md`，本仓库不生成虚构对话。
 
 [报名草稿](docs/REGISTRATION.md) · [官方比赛规则](https://github.com/M-China/mcd-developer-innovation-challenge/blob/main/activityGuidelines.md) · [来源与同类调研](docs/SOURCES.md)
 
