@@ -23,7 +23,8 @@ def read_token(env_file: Path | None = None) -> str:
     token = os.environ.get("MCD_MCP_TOKEN", "").strip()
     if token:
         return token
-    path = env_file if env_file is not None else Path(__file__).resolve().parents[1] / ".env"
+    from runtime_paths import data_root
+    path = env_file if env_file is not None else data_root() / ".env"
     if not path.is_file():
         return ""
     for line in path.read_text(encoding="utf-8-sig").splitlines():

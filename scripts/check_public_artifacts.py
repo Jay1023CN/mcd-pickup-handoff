@@ -9,7 +9,7 @@ from zipfile import ZipFile, is_zipfile
 from mcp_readonly import read_token
 
 ROOT = Path(__file__).resolve().parents[1]
-BLOCKED = {"private", "node_modules", ".wrangler", ".sites-runtime", ".git", "__pycache__"}
+BLOCKED = {"private", "node_modules", "dist", ".wrangler", ".sites-runtime", ".git", "__pycache__"}
 
 def sensitive_values():
     result = []
@@ -32,7 +32,7 @@ def sensitive_values():
 
 def check_file(name, data, values):
     parts = PurePosixPath(name).parts
-    if any(part in BLOCKED or part.startswith(".env") for part in parts):
+    if (parts and parts[0] == "build") or any(part in BLOCKED or part.startswith(".env") for part in parts):
         raise ValueError(f"Private path in public files: {name}")
     if any(value in data for value in values):
         raise ValueError(f"Local credential detected in: {name}")

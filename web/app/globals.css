@@ -243,6 +243,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .connection-panel > .loading-label + .button { margin-top: 20px; }
 .pairing-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .pairing-form > label { display: block; font-size: 12px; color: #645d4e; margin-bottom: 9px; }
+.connection-panel > .connector-download-note { font-size: 11px; margin: 10px 0 20px; }
+.connection-panel .pairing-form { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; }
 .pair-code-input { width: 100%; min-width: 0; border: 1px solid #d6cdbb; background: #faf6ed; border-radius: 9px; padding: 15px 13px; font-size: 19px; font-family: ui-monospace, monospace; letter-spacing: 1.7px; color: var(--ink); }
 .pair-code-input::placeholder { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13px; letter-spacing: 0; color: #9b9180; }
 .pairing-form > .pair-code-help { font-size: 11px; margin: 10px 0 19px; color: #918674; }

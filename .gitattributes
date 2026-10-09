@@ -17,3 +17,6 @@
 *.png binary
 *.zip binary
 *.ttf binary
+*.ico binary
+*.sha256 text eol=lf
+desktop/licenses/* -text whitespace=-trailing-space,-blank-at-eof

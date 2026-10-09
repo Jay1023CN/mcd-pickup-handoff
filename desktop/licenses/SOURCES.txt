@@ -1,0 +1,9 @@
+CPython 3.13.14: exact combined LICENSE.txt from this build interpreter D:/Python; https://docs.python.org/3.13/license.html
+Tcl 8.6.15: https://raw.githubusercontent.com/tcltk/tcl/core-8-6-15/license.terms
+Tk 8.6.15: exact license.terms from this build interpreter D:/Python/tcl/tk8.6; https://github.com/tcltk/tk/blob/core-8-6-15/license.terms
+PyInstaller 6.22.3: exact official installed wheel pyinstaller-6.22.3.dist-info/licenses/COPYING.txt; https://pyinstaller.org/en/stable/license.html
+PyInstaller runtime: https://pyinstaller.org/en/stable/runtime-information.html
+Standalone child lifecycle: https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html#using-sys-executable-to-spawn-subprocesses-that-outlive-the-application-process-implementing-application-restart
+Nayuki QR module: https://github.com/nayuki/QR-Code-generator/tree/3c6d0b3cefb4e049dc337e82237c9644399716a8/python ; unchanged vendored MIT text
+Project/assets and font/icon notices: exact repository LICENSE and corresponding assets/* notices.
+Build-only Python packages are not imported or bundled in the application, except PyInstaller bootloader/runtime hooks.

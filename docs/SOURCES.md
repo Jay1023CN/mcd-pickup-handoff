@@ -35,3 +35,9 @@
 - 使用 [Project Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) 的纯 Python 模块，固定来源提交为 `3c6d0b3cefb4e049dc337e82237c9644399716a8`。上游为 MIT 许可，原源码与完整版权声明保存在 `scripts/vendor/qrcodegen.py`；独立许可副本为 `scripts/vendor/LICENSE.qrcodegen.txt`。
 - 本地源码与 [该提交的官方原文件](https://raw.githubusercontent.com/nayuki/QR-Code-generator/3c6d0b3cefb4e049dc337e82237c9644399716a8/python/qrcodegen.py) 字节一致，SHA-256 为 `9f4ed1dd201dcb92b1bc0d6e14f46c754bcff0ce48580c5d7e8ace8f6926c8ef`，未修改上游模块。
 - 配对链接在电脑上编码，Tk 原生显示二维码；无需额外安装 Python 包，也不会把配对码或 MCP Token 发送给二维码服务。
+
+## Windows 打包与门店导航
+
+- 使用 [PyInstaller 6.22.3](https://pyinstaller.org/en/stable/license.html) 打包 Windows 连接器，完整许可与引导程序例外条款保存在 `desktop/licenses/PyInstaller-COPYING.txt`。Python、Tcl/Tk、二维码、字体与图标的许可随下载包提供，来源清单见 `desktop/licenses/SOURCES.txt`。
+- 冻结程序的数据目录与资源目录按 [PyInstaller 运行时文档](https://pyinstaller.org/en/stable/runtime-information.html) 区分；后台连接进程按[独立子进程说明](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html#using-sys-executable-to-spawn-subprocesses-that-outlive-the-application-process-implementing-application-restart)启动。
+- 门店导航使用[高德 URI 搜索接口](https://developer.amap.com/api/uri-api/guide/search/search)，仅传官方返回的门店名与门店地址，用户点击后打开地图。

@@ -1,4 +1,4 @@
-"""Small Windows connector window. MCP credentials stay in this project directory."""
+"""Native connector window. MCP credentials stay on this computer."""
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
@@ -19,6 +19,7 @@ from live_handoff import HandoffError
 from mcp_readonly import read_token
 from mobile_bridge import DEFAULT_SITE, DIRECTORY, ROOT, InstanceLock, Transport, bridge_running, phone_url, prepare_connection, write_private
 from vendor.qrcodegen import QrCode
+from runtime_paths import frozen, resource_root
 
 
 def pairing_qr_ppm(url: str, maximum=208) -> bytes:
@@ -102,13 +103,18 @@ class ConnectorController:
         self.directory.mkdir(parents=True, exist_ok=True)
         (self.directory / "stop.request").unlink(missing_ok=True)
         executable = Path(sys.executable)
-        windowless = executable.with_name("pythonw.exe") if os.name == "nt" else executable
+        windowless = executable if frozen() else executable.with_name("pythonw.exe") if os.name == "nt" else executable
         if not windowless.is_file():
             raise HandoffError("没有找到 Python 图形运行程序，请检查 Python 安装。")
-        command = [str(windowless), "-X", "utf8", str(self.root / "scripts/mobile_bridge.py"), "--site", self.site(), "--no-browser"]
+        command = [str(windowless), "--bridge"] if frozen() else [str(windowless), "-X", "utf8", str(self.root / "scripts/mobile_bridge.py")]
+        command.extend(["--site", self.site(), "--no-browser"])
         options = {"cwd": str(self.root), "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
         if os.name == "nt":
             options["creationflags"] = subprocess.CREATE_NO_WINDOW
+        if frozen():
+            # A standalone child must own its extraction folder so closing the
+            # window cannot remove the files used by the running bridge.
+            options["env"] = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")
         self.process = self.launcher(command, **options)
         return "连接程序正在启动。"
 
@@ -158,6 +164,17 @@ class ConnectorController:
         return "在线 · 等待配对", "点击打开手机入口，把临时配对码填到手机网页。"
 
 
+def work_area(window):
+    """Use the OS work area, which excludes the taskbar, in this process's pixels."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        rect = wintypes.RECT()
+        if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0):
+            return rect.left, rect.top, rect.right, rect.bottom
+    return 0, 0, window.winfo_screenwidth(), window.winfo_screenheight()
+
+
 class ConnectorWindow:
     def __init__(self, window, controller=None):
         self.window, self.controller = window, controller or ConnectorController()
@@ -165,47 +182,67 @@ class ConnectorWindow:
         self.busy, self.closed = False, False
         self.pair_info, self.pair_qr = None, None
         window.title("麦麦取餐交接官 · 电脑连接")
-        window.geometry("800x725")
-        window.minsize(730, 710)
+        left, top, right, bottom = work_area(window)
+        frame_width = frame_height = 0
+        if os.name == "nt":
+            import ctypes
+            metrics = ctypes.windll.user32.GetSystemMetrics
+            padded_border = metrics(92)
+            frame_width = 2 * (metrics(32) + padded_border)
+            frame_height = 2 * (metrics(33) + padded_border) + metrics(4)
+        width = min(800, right - left - frame_width - 16)
+        height = min(725, bottom - top - frame_height - 16)
+        window.geometry(f"{width}x{height}+{left + 8}+{top + 8}")
+        window.minsize(min(730, width), min(480, height))
         window.configure(bg="#f7f5ef")
         window.protocol("WM_DELETE_WINDOW", self.close)
         style = ttk.Style(window)
         style.configure("TFrame", background="#f7f5ef")
         style.configure("TLabel", background="#f7f5ef", font=("Microsoft YaHei UI", 10))
         style.configure("TButton", font=("Microsoft YaHei UI", 10), padding=(12, 8))
-        frame = ttk.Frame(window, padding=25)
-        frame.pack(fill="both", expand=True)
+        body = ttk.Frame(window)
+        body.pack(fill="both", expand=True)
+        self.canvas = tk.Canvas(body, background="#f7f5ef", highlightthickness=0, borderwidth=0)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar = ttk.Scrollbar(body, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        frame = self.content = ttk.Frame(self.canvas, padding=18)
+        self.content_id = self.canvas.create_window(0, 0, window=frame, anchor="nw")
+        self.canvas.bind("<Configure>", self.resize_content)
+        frame.bind("<Configure>", self.update_scroll)
+        window.bind_all("<MouseWheel>", self.scroll_wheel, add="+")
+        window.bind_all("<Button-4>", lambda _: self.canvas.yview_scroll(-1, "units"), add="+")
+        window.bind_all("<Button-5>", lambda _: self.canvas.yview_scroll(1, "units"), add="+")
         header = ttk.Frame(frame)
         header.pack(fill="x")
         self.brand_icon = None
-        logo = self.controller.root / "assets/brand/handoff-concept.png"
+        logo = resource_root() / "assets/brand/handoff-mark.png"
         if logo.is_file():
-            original = tk.PhotoImage(file=str(logo))
-            factor = max(1, (max(original.width(), original.height()) + 63) // 64)
-            self.brand_icon = original.subsample(factor, factor)
+            self.brand_icon = tk.PhotoImage(file=str(logo))
             window.iconphoto(True, self.brand_icon)
             ttk.Label(header, image=self.brand_icon).pack(side="left", padx=(0, 12))
         ttk.Label(header, text="麦麦取餐交接官\n电脑连接", font=("Microsoft YaHei UI", 17, "bold")).pack(side="left", anchor="w")
-        ttk.Label(frame, text="手机扫一次码，就能选订单、发链接。不用注册，Token 留在电脑上。", wraplength=725).pack(anchor="w", pady=(10, 22))
+        self.intro_label = ttk.Label(frame, text="手机扫一次码，就能选订单、发链接。不用注册，Token 留在电脑上。", wraplength=725)
+        self.intro_label.pack(anchor="w", pady=(6, 12))
         self.status_text, self.detail_text = tk.StringVar(), tk.StringVar()
         ttk.Label(frame, textvariable=self.status_text, font=("Microsoft YaHei UI", 13, "bold")).pack(anchor="w")
-        ttk.Label(frame, textvariable=self.detail_text, wraplength=475).pack(anchor="w", pady=(5, 18))
+        ttk.Label(frame, textvariable=self.detail_text, wraplength=475).pack(anchor="w", pady=(3, 10))
         ttk.Label(frame, text="本机 MCP Token").pack(anchor="w")
         self.token_entry = ttk.Entry(frame, show="●", font=("Microsoft YaHei UI", 10))
         self.token_entry.pack(fill="x", pady=(5, 3))
         configured = bool(read_token(self.controller.root / ".env"))
-        self.saved_text = tk.StringVar(value="已在本机保存，留空继续使用。" if configured else "只保存到本机 .env，填一次即可。")
+        self.saved_text = tk.StringVar(value="已在本机保存，留空继续使用。" if configured else "只保存在这台电脑，填一次即可。")
         ttk.Label(frame, textvariable=self.saved_text).pack(anchor="w")
         buttons = ttk.Frame(frame)
-        buttons.pack(fill="x", pady=(20, 8))
+        buttons.pack(fill="x", pady=(12, 6))
         self.start_button = ttk.Button(buttons, text="启动连接", command=self.start)
         self.start_button.pack(side="left")
         self.open_button = ttk.Button(buttons, text="打开手机入口", command=self.open_phone)
         self.open_button.pack(side="left", padx=8)
-        self.stop_button = ttk.Button(buttons, text="停止", command=lambda: self.work(self.controller.stop))
+        self.stop_button = ttk.Button(buttons, text="停止连接", command=lambda: self.work(self.controller.stop))
         self.stop_button.pack(side="left")
         self.pair_frame = ttk.Frame(frame)
-        self.pair_frame.pack(fill="x", pady=(10, 0))
+        self.pair_frame.pack(fill="x", pady=(8, 0))
         self.qr_label = ttk.Label(self.pair_frame, text="点击打开手机入口\n生成手机配对二维码", anchor="center", width=24)
         self.qr_label.pack(side="left", padx=(0, 18))
         pair_details = ttk.Frame(self.pair_frame)
@@ -228,10 +265,30 @@ class ConnectorWindow:
         self.copy_link_button = ttk.Button(link_row, text="复制配对链接", command=lambda: self.copy_pair("url"), state="disabled")
         self.copy_link_button.pack(side="left", padx=(8, 0))
         self.repair_button = ttk.Button(frame, text="断开原手机，重新配对", command=self.re_pair)
-        self.repair_button.pack(anchor="w", pady=(15, 0))
+        self.repair_button.pack(anchor="w", pady=(10, 0))
         self.notice = tk.StringVar(value="关掉这个窗口后，连接会继续运行。不会自动开机启动。")
-        ttk.Label(frame, textvariable=self.notice, wraplength=475).pack(anchor="w", pady=(12, 0))
+        self.notice_label = ttk.Label(frame, textvariable=self.notice, wraplength=475)
+        self.notice_label.pack(anchor="w", pady=(8, 0))
         self.poll()
+
+    def resize_content(self, event):
+        self.canvas.itemconfigure(self.content_id, width=event.width)
+        self.intro_label.configure(wraplength=max(100, event.width - 36))
+        self.update_scroll()
+
+    def update_scroll(self, event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        if self.content.winfo_reqheight() > self.canvas.winfo_height():
+            if not self.scrollbar.winfo_manager():
+                self.scrollbar.pack(side="right", fill="y")
+        else:
+            self.scrollbar.pack_forget()
+            self.canvas.yview_moveto(0)
+
+    def scroll_wheel(self, event):
+        if self.scrollbar.winfo_manager() and event.delta:
+            self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+            return "break"
 
     def open_phone(self):
         if self.busy:

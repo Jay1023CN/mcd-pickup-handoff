@@ -59,6 +59,7 @@ function sanitizeResult(action, value) {
   return value;
 }
 const safeFailure = "本次查询没有完成，请重新查询。";
+const hiddenCodeConflict = "原交接包含取餐码，请重新查询并生成隐藏码的新交接。";
 const activeStatus = status => ["2", "10", "配餐中", "配餐中-已支付", "配餐中-餐厅确认配餐中"].includes(status);
 const progressRanks = { accepted: 1, arrived: 2, collected: 3 };
 const progressOf = row => row.progress_step ? { step: row.progress_step, updated_at: row.progress_updated_at } : undefined;
@@ -71,6 +72,7 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
     await db.batch([
       db.prepare("UPDATE mobile_jobs SET result=NULL WHERE id IN (SELECT id FROM mobile_jobs WHERE state IN ('done','failed') AND result IS NOT NULL AND expires_at<=? ORDER BY expires_at LIMIT 25)").bind(now),
       db.prepare("UPDATE mobile_shares SET verified=0,card=json_set(card,'$.pickup_code','') WHERE id IN (SELECT id FROM mobile_shares WHERE expires_at<=? AND (verified!=0 OR json_extract(card,'$.pickup_code')!='') ORDER BY expires_at LIMIT 25)").bind(now),
+      db.prepare("UPDATE mobile_shares SET delivery_url=NULL WHERE id IN (SELECT id FROM mobile_shares WHERE delivery_url IS NOT NULL AND expires_at<=? ORDER BY expires_at LIMIT 25)").bind(now),
       db.prepare("DELETE FROM mobile_rate_limits WHERE key IN (SELECT key FROM mobile_rate_limits WHERE expires_at<=? ORDER BY expires_at LIMIT 50)").bind(now),
       db.prepare("DELETE FROM mobile_jobs WHERE id IN (SELECT id FROM mobile_jobs WHERE expires_at<? ORDER BY expires_at LIMIT 50)").bind(now - RETENTION),
       db.prepare("DELETE FROM mobile_shares WHERE id IN (SELECT id FROM mobile_shares WHERE expires_at<? ORDER BY expires_at LIMIT 25)").bind(now - RETENTION),
@@ -135,11 +137,30 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
     if (!activeStatus(result.card.status_text)) fail(422, "这笔订单现在不能生成取餐交接链接。");
     const expires = Math.min(Date.parse(result.expires_at), now + TTL);
     if (expires <= now) fail(410, "交接记录已过期，请重新生成。");
+    const prior = await one("SELECT * FROM mobile_shares WHERE owner_id=? AND device_id=? AND issue_key=?", ownerId, deviceId, result.record_id);
+    if (prior) {
+      checkHiddenCode(prior, result);
+      return { statement: null, record_id: result.record_id, result: deliveryResult(prior, now) };
+    }
     const shareId = random(16), token = random();
+    const url = `/take/${shareId}#access=${token}`;
     return {
-      statement: db.prepare("INSERT INTO mobile_shares(id,owner_id,device_id,token_hash,record_id,card,queried_at,expires_at,verified,revoked,refreshed_at) SELECT ?,?,?,?,?,?,?,?,1,0,0 WHERE EXISTS(SELECT 1 FROM mobile_devices WHERE id=? AND owner_id=?) AND (? IS NULL OR EXISTS(SELECT 1 FROM mobile_jobs WHERE id=? AND device_id=? AND owner_id=? AND state='completing' AND lease_until>? AND expires_at>?))").bind(shareId, ownerId, deviceId, await hash(token), result.record_id, JSON.stringify(result.card), result.queried_at, expires, deviceId, ownerId, jobId, jobId, deviceId, ownerId, now, now),
-      result: { card: result.card, expires_at: new Date(expires).toISOString(), share: { id: shareId, url: `/take/${shareId}#access=${token}` } },
+      statement: db.prepare("INSERT INTO mobile_shares(id,owner_id,device_id,token_hash,record_id,issue_key,delivery_url,card,queried_at,expires_at,verified,revoked,refreshed_at) SELECT ?,?,?,?,?,?,?,?,?,?,1,0,0 WHERE EXISTS(SELECT 1 FROM mobile_devices WHERE id=? AND owner_id=?) AND (? IS NULL OR EXISTS(SELECT 1 FROM mobile_jobs WHERE id=? AND device_id=? AND owner_id=? AND state='completing' AND lease_until>? AND expires_at>?)) ON CONFLICT(owner_id,device_id,issue_key) WHERE issue_key IS NOT NULL DO NOTHING").bind(shareId, ownerId, deviceId, await hash(token), result.record_id, result.record_id, url, JSON.stringify(result.card), result.queried_at, expires, deviceId, ownerId, jobId, jobId, deviceId, ownerId, now, now),
+      record_id: result.record_id,
+      result: { card: result.card, expires_at: new Date(expires).toISOString(), share: { id: shareId, url } },
     };
+  }
+  function validDelivery(row, now) {
+    return !!row && !row.revoked && row.expires_at > now && row.progress_step !== "collected" && typeof row.delivery_url === "string" && new RegExp(`^/take/${row.id}#access=[a-f0-9]{64}$`).test(row.delivery_url);
+  }
+  function checkHiddenCode(row, requested) {
+    if (requested.card.pickup_code === "" && JSON.parse(row.card).pickup_code) fail(409, hiddenCodeConflict);
+  }
+  function deliveryResult(row, now) {
+    if (row.revoked || row.expires_at <= now) fail(410, "交接链接已撤销或到期，请重新查询并生成新记录。");
+    if (row.progress_step === "collected") fail(409, "朋友已反馈取餐，这张交接不能再次分享。");
+    if (!validDelivery(row, now)) fail(410, "这张旧交接链接无法恢复，请重新查询并生成新记录。");
+    return { card: JSON.parse(row.card), expires_at: new Date(row.expires_at).toISOString(), share: { id: row.id, url: row.delivery_url } };
   }
   async function jobView(job, now) {
     await expiredJobs(job.device_id, now);
@@ -154,7 +175,16 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
     const result = state === "done" ? JSON.parse(current.result) : undefined;
     const resultShareId = current.share_id || (current.action === "create" ? result?.share?.id : null);
     if (result?.card && resultShareId) {
-      const s = await one("SELECT progress_step FROM mobile_shares WHERE id=? AND owner_id=? AND device_id=?", resultShareId, current.owner_id, current.device_id);
+      const s = await one("SELECT s.* FROM mobile_shares s JOIN mobile_devices d ON d.id=s.device_id AND d.owner_id=s.owner_id WHERE s.id=? AND s.owner_id=? AND s.device_id=?", resultShareId, current.owner_id, current.device_id);
+      if (s && current.action === "create") {
+        // A concurrent direct publisher may have won this record's unique issuance.
+        result.card = JSON.parse(s.card);
+        result.expires_at = new Date(s.expires_at).toISOString();
+      }
+      if (result.share) {
+        delete result.share.url;
+        if (validDelivery(s, now)) result.share.url = s.delivery_url;
+      }
       if (s?.progress_step === "collected") {
         result.card.pickup_code = "";
         if (result.share) delete result.share.url;
@@ -208,7 +238,7 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
       const code = random(8), expires = now + TTL;
       const statements = [];
       if (body.reset_owner) {
-        statements.push(db.prepare("UPDATE mobile_shares SET revoked=1,verified=0,card=json_set(card,'$.pickup_code','') WHERE device_id=?").bind(d.id));
+        statements.push(db.prepare("UPDATE mobile_shares SET revoked=1,verified=0,delivery_url=NULL,card=json_set(card,'$.pickup_code','') WHERE device_id=?").bind(d.id));
         statements.push(db.prepare("UPDATE mobile_jobs SET state='failed',result=NULL,error=? WHERE device_id=?").bind("电脑连接已重新配对。", d.id));
       }
       statements.push(db.prepare("UPDATE mobile_devices SET owner_id=CASE WHEN ?=1 THEN NULL ELSE owner_id END,pair_hash=?,pair_expires=?,running_job=CASE WHEN ?=1 THEN NULL ELSE running_job END,lock_until=CASE WHEN ?=1 THEN 0 ELSE lock_until END WHERE id=?").bind(body.reset_owner ? 1 : 0, await hash(code), expires, body.reset_owner ? 1 : 0, body.reset_owner ? 1 : 0, d.id));
@@ -237,9 +267,11 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
       const { device_id: ignored, ...value } = body;
       void ignored;
       const publication = await shareRecord(d.owner_id, d.id, value, now);
-      const committed = await db.batch([publication.statement, db.prepare("UPDATE mobile_devices SET heartbeat=? WHERE id=?").bind(now, d.id)]);
-      if (!committed[0]?.meta?.changes) fail(409, "连接配对已变化，请重新查询。");
-      return publication.result;
+      await db.batch([publication.statement, db.prepare("UPDATE mobile_devices SET heartbeat=? WHERE id=? AND owner_id=?").bind(now, d.id, d.owner_id)].filter(Boolean));
+      const issued = await one("SELECT s.* FROM mobile_shares s JOIN mobile_devices d ON d.id=s.device_id AND d.owner_id=s.owner_id WHERE s.owner_id=? AND s.device_id=? AND s.issue_key=?", d.owner_id, d.id, publication.record_id);
+      if (!issued) fail(409, "连接配对已变化，请重新查询。");
+      checkHiddenCode(issued, value);
+      return deliveryResult(issued, now);
     }
     if (path === "/devices/complete" && method === "POST") {
       fields(body, ["device_id", "job_id", "result", "error"], ["device_id", "job_id"]);
@@ -260,12 +292,14 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
       }
       const claimed = await one("UPDATE mobile_jobs SET state='completing' WHERE id=? AND state='running' AND lease_until>? RETURNING id", j.id, now);
       if (!claimed) fail(409, "任务结果已提交。");
-      const statements = [];
+      const statements = []; let createRecord = null;
       if (j.action === "create" && !error) {
         if (JSON.parse(j.args).include_pickup_code === false) result.card.pickup_code = "";
         try {
           const publication = await shareRecord(j.owner_id, d.id, result, now, j.id);
-          statements.push(publication.statement); result = publication.result;
+          if (JSON.parse(j.args).include_pickup_code === false && publication.result.card.pickup_code) fail(409, "这条交接记录的取餐码选项已变化，请重新生成新记录。");
+          if (publication.statement) statements.push(publication.statement);
+          createRecord = publication.record_id; result = publication.result;
         } catch (e) { if (!(e instanceof ApiError)) throw e; error = e.message; }
       }
       if (j.action === "refresh") {
@@ -280,7 +314,13 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
           if (!error) result = { verified, card: latest, queried_at: queriedAt, notice: result.notice };
         }
       }
-      statements.push(db.prepare("UPDATE mobile_jobs SET state=?,result=?,error=? WHERE id=? AND state='completing'").bind(error ? "failed" : "done", error ? null : JSON.stringify(result), error || null, j.id));
+      if (!error && createRecord) {
+        delete result.share.url;
+        // Check the winning canonical row inside the issuance transaction. A direct
+        // publisher may have won after the candidate was validated above.
+        if (JSON.parse(j.args).include_pickup_code === false) statements.push(db.prepare("UPDATE mobile_jobs SET state='failed',result=NULL,error=? WHERE id=? AND state='completing' AND EXISTS(SELECT 1 FROM mobile_shares WHERE owner_id=? AND device_id=? AND issue_key=? AND json_extract(card,'$.pickup_code')!='')").bind(hiddenCodeConflict, j.id, j.owner_id, d.id, createRecord));
+        statements.push(db.prepare("UPDATE mobile_jobs SET state='done',result=json_set(?,'$.share.id',(SELECT id FROM mobile_shares WHERE owner_id=? AND device_id=? AND issue_key=?)),error=NULL WHERE id=? AND state='completing'").bind(JSON.stringify(result), j.owner_id, d.id, createRecord, j.id));
+      } else statements.push(db.prepare("UPDATE mobile_jobs SET state=?,result=?,error=? WHERE id=? AND state='completing'").bind(error ? "failed" : "done", error ? null : JSON.stringify(result), error || null, j.id));
       statements.push(db.prepare("UPDATE mobile_devices SET running_job=NULL,lock_until=0,heartbeat=? WHERE id=? AND running_job=?").bind(now, d.id, j.id));
       try { await db.batch(statements); }
       catch (e) {
@@ -304,7 +344,7 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
     }
     if (path === "/shares" && method === "GET") {
       const userId = await owner(req, now);
-      const rows = await db.prepare("SELECT id,device_id,card,queried_at,expires_at,revoked,verified,progress_step,progress_updated_at FROM mobile_shares WHERE owner_id=? AND expires_at>=? ORDER BY expires_at DESC,id DESC LIMIT 20").bind(userId, now - 7 * 24 * 60 * 60_000).all();
+      const rows = await db.prepare("SELECT id,device_id,card,queried_at,expires_at,revoked,verified,progress_step,progress_updated_at,delivery_url FROM mobile_shares WHERE owner_id=? AND expires_at>=? ORDER BY expires_at DESC,id DESC LIMIT 20").bind(userId, now - 7 * 24 * 60 * 60_000).all();
       const entries = [];
       for (const s of rows.results || []) {
         const c = JSON.parse(s.card), connected = await online(s.device_id, now);
@@ -312,13 +352,12 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
         const entry = { id: s.id, store_name: c.store_name, status_text: c.status_text, queried_at: s.queried_at, expires_at: new Date(s.expires_at).toISOString(), revoked: !!s.revoked, verified: !!s.verified && active && connected, online: connected };
         if (progressOf(s)) entry.progress = progressOf(s);
         if (active && s.progress_step !== "collected") {
-          const j = await one("SELECT result FROM mobile_jobs WHERE device_id=? AND owner_id=? AND action='create' AND state='done' AND expires_at>? AND json_extract(result,'$.share.id')=? ORDER BY created_at DESC LIMIT 1", s.device_id, userId, now, s.id);
-          const link = j?.result && JSON.parse(j.result).share?.url;
-          if (typeof link === "string" && new RegExp(`^/take/${s.id}#access=[a-f0-9]{64}$`).test(link)) entry.url = link;
+          const ownedDevice = await one("SELECT id FROM mobile_devices WHERE id=? AND owner_id=?", s.device_id, userId);
+          if (ownedDevice && validDelivery(s, now)) entry.url = s.delivery_url;
         }
         entries.push(entry);
       }
-      return { entries };
+      return { owner_id: userId, entries };
     }
     let match = path.match(/^\/jobs\/([a-f0-9]{32})$/);
     if (match && method === "GET") {
@@ -334,7 +373,7 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
         if (!s) fail(404, "交接链接不存在。");
         const c = JSON.parse(s.card); c.pickup_code = "";
         await db.batch([
-          db.prepare("UPDATE mobile_shares SET revoked=1,verified=0,card=? WHERE id=?").bind(JSON.stringify(c), shareId),
+          db.prepare("UPDATE mobile_shares SET revoked=1,verified=0,delivery_url=NULL,card=? WHERE id=?").bind(JSON.stringify(c), shareId),
           db.prepare("UPDATE mobile_jobs SET state='failed',result=NULL,error=? WHERE share_id=?").bind("交接链接已撤销。", shareId),
           db.prepare("UPDATE mobile_jobs SET state='failed',result=NULL,error=? WHERE device_id=? AND owner_id=? AND action='create' AND json_extract(result,'$.share.id')=?").bind("交接链接已撤销。", s.device_id, userId, shareId),
         ]);
@@ -346,7 +385,7 @@ export function createMobileHandler(db, { clock = () => Date.now() } = {}) {
         if (typeof body.step !== "string" || !Object.hasOwn(progressRanks, body.step)) fail(422, "取餐反馈步骤无效。");
         await rate(`progress:${shareId}`, 30, now);
         const rank = progressRanks[body.step];
-        const changed = await one("UPDATE mobile_shares SET progress_step=?,progress_updated_at=? WHERE id=? AND revoked=0 AND expires_at>? AND CASE progress_step WHEN 'accepted' THEN 1 WHEN 'arrived' THEN 2 WHEN 'collected' THEN 3 ELSE 0 END<? RETURNING progress_step,progress_updated_at", body.step, new Date(now).toISOString(), shareId, now, rank);
+        const changed = await one("UPDATE mobile_shares SET progress_step=?,progress_updated_at=?,delivery_url=CASE WHEN ?='collected' THEN NULL ELSE delivery_url END WHERE id=? AND revoked=0 AND expires_at>? AND CASE progress_step WHEN 'accepted' THEN 1 WHEN 'arrived' THEN 2 WHEN 'collected' THEN 3 ELSE 0 END<? RETURNING progress_step,progress_updated_at", body.step, new Date(now).toISOString(), body.step, shareId, now, rank);
         if (changed) return { progress: progressOf(changed) };
         const current = await one("SELECT progress_step,progress_updated_at,revoked,expires_at FROM mobile_shares WHERE id=?", shareId);
         if (!current || current.revoked || current.expires_at <= now) fail(410, "交接链接已撤销或到期。");

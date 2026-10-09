@@ -4,4 +4,6 @@
 
 网页标志：`web/public/brand/handoff-mark.svg`。浏览器图标复用同一图形。SVG 使用纯色和固定几何路径，在手机页头和小图标中保持清晰。
 
+电脑连接窗口使用同图形的 64px PNG：`assets/brand/handoff-mark.png`；EXE 图标使用 `assets/brand/handoff-mark.ico`，内含七种尺寸。网页、窗口与程序图标保持一致，图片不含文字，小尺寸也能辨认餐袋和交接箭头。
+
 设计参考通过内置 imagegen 生成，原始 PNG 保留为 `assets/brand/handoff-concept.png`。提示词：为朋友协助取麦当劳餐品的移动产品设计原创图标；深红圆角方形、奶油白餐袋、融入袋形的暖黄色交接箭头；轮廓清楚、比例平衡，不使用字母或官方金拱门。网页的 SVG 是按这一方向制作的独立矢量版本。

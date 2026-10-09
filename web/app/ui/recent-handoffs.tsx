@@ -2,35 +2,47 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, expired, progressText, readableStatus, request, Session, ShareSummary, timeText } from "./mobile-api";
 import { Loading, Notice } from "./shared";
+type ShareHistory = { owner_id: string; entries: ShareSummary[] };
 
-export function RecentHandoffs({ ownerId, refreshTick, now, onIdentityChanged, onRevoke, onSummary }: { ownerId: string; refreshTick: number; now: number; onIdentityChanged: () => Promise<void>; onRevoke: (id: string) => void; onSummary: (entry: ShareSummary) => void }) {
+export function RecentHandoffs({ ownerId, refreshTick, now, ownerBusy, onIdentityChanged, onRevoke, onSummary }: { ownerId: string; refreshTick: number; now: number; ownerBusy: boolean; onIdentityChanged: () => Promise<void>; onRevoke: (id: string) => void; onSummary: (entry: ShareSummary) => void }) {
   const [entries, setEntries] = useState<ShareSummary[]>([]), [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState(""), [feedback, setFeedback] = useState(""), [recovered, setRecovered] = useState<ShareSummary | null>(null);
-  const lifecycle = useRef<AbortController | null>(null), epoch = useRef(0);
+  const lifecycle = useRef<AbortController | null>(null), epoch = useRef(0), quietRequest = useRef<AbortController | null>(null), operationBusy = useRef(false);
   const canShare = useCallback((entry: ShareSummary) => !entry.revoked && !expired(entry.expires_at) && entry.progress?.step !== "collected" && !!entry.url, []);
 
   const confirmOwner = useCallback(async (signal: AbortSignal) => {
     const session = await request<Session>("/session", undefined, undefined, signal);
+    if (signal.aborted) throw new DOMException("请求已取消", "AbortError");
     if (!session.authenticated || session.user?.id !== ownerId) {
       await onIdentityChanged();
       throw new DOMException("账户已改变", "AbortError");
     }
   }, [ownerId, onIdentityChanged]);
 
+  const confirmHistoryOwner = useCallback(async (result: ShareHistory, signal: AbortSignal) => {
+    if (signal.aborted) throw new DOMException("请求已取消", "AbortError");
+    if (result.owner_id !== ownerId) {
+      await onIdentityChanged();
+      throw new DOMException("交接记录归属已改变", "AbortError");
+    }
+  }, [ownerId, onIdentityChanged]);
+
   const load = useCallback(async () => {
+    operationBusy.current = true; quietRequest.current?.abort();
     const version = ++epoch.current; lifecycle.current?.abort(); const controller = new AbortController(); lifecycle.current = controller;
     setBusy("load"); setError(""); setFeedback(""); setRecovered(null); setEntries([]);
     const current = () => version === epoch.current && !controller.signal.aborted;
     try {
       await confirmOwner(controller.signal); if (!current()) return;
-      const result = await request<{ entries: ShareSummary[] }>("/shares", undefined, undefined, controller.signal);
+      const result = await request<ShareHistory>("/shares", undefined, undefined, controller.signal);
+      if (!current()) return; await confirmHistoryOwner(result, controller.signal);
       if (current()) { setEntries(result.entries.slice(0, 20)); result.entries.forEach(onSummary); }
     } catch (e) {
       if (!current() || (e instanceof Error && e.name === "AbortError")) return;
       if (e instanceof ApiError && e.status === 401) { await onIdentityChanged(); return; }
       setError(e instanceof Error ? e.message : "交接记录读取失败，请重试。");
-    } finally { if (current()) setBusy(null); }
-  }, [confirmOwner, onIdentityChanged, onSummary]);
+    } finally { if (current()) { operationBusy.current = false; setBusy(null); } }
+  }, [confirmOwner, confirmHistoryOwner, onIdentityChanged, onSummary]);
 
   useEffect(() => {
     let mounted = true; void Promise.resolve().then(() => { if (mounted) return load(); });
@@ -38,14 +50,51 @@ export function RecentHandoffs({ ownerId, refreshTick, now, onIdentityChanged, o
     return () => { mounted = false; invalidate(); };
   }, [load, refreshTick]);
 
+  // Friend feedback is already stored on the server; this never queries MCP.
+  const hasActiveShares = entries.some((entry) => !entry.revoked && !expired(entry.expires_at, now) && entry.progress?.step !== "collected");
+  useEffect(() => {
+    if (!hasActiveShares || busy || ownerBusy) return;
+    let mounted = true, delay = 12_000, timer: ReturnType<typeof setTimeout>;
+    const version = epoch.current;
+    const current = (controller: AbortController) => mounted && version === epoch.current && !controller.signal.aborted && !operationBusy.current && document.visibilityState === "visible";
+    const schedule = () => { if (mounted) timer = setTimeout(() => void poll(), delay); };
+    const poll = async () => {
+      // Leave selected link/address text alone while the user copies it.
+      const editing = document.activeElement?.matches("input,textarea") || !!window.getSelection()?.toString();
+      if (document.visibilityState !== "visible" || operationBusy.current || editing) { schedule(); return; }
+      const controller = new AbortController(); quietRequest.current = controller;
+      try {
+        await confirmOwner(controller.signal); if (!current(controller)) return;
+        const result = await request<ShareHistory>("/shares", undefined, undefined, controller.signal);
+        if (!current(controller)) return; await confirmHistoryOwner(result, controller.signal);
+        if (!current(controller)) return;
+        const latest = result.entries.slice(0, 20);
+        setEntries(latest); latest.forEach(onSummary);
+        setRecovered((previous) => previous ? latest.find((entry) => entry.id === previous.id && canShare(entry)) || null : null);
+        delay = 12_000;
+        if (!latest.some((entry) => !entry.revoked && !expired(entry.expires_at) && entry.progress?.step !== "collected")) return;
+      } catch (e) {
+        if (!current(controller) || (e instanceof Error && e.name === "AbortError")) return;
+        if (e instanceof ApiError && [401, 403, 404, 410].includes(e.status)) { await onIdentityChanged(); return; }
+        delay = Math.min(delay * 2, 120_000);
+      } finally { if (quietRequest.current === controller) quietRequest.current = null; }
+      schedule();
+    };
+    const stop = () => { mounted = false; clearTimeout(timer); quietRequest.current?.abort(); };
+    const onVisibility = () => { if (document.visibilityState !== "visible") stop(); };
+    schedule(); document.addEventListener("visibilitychange", onVisibility); window.addEventListener("pagehide", stop);
+    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pagehide", stop); };
+  }, [hasActiveShares, busy, ownerBusy, confirmOwner, confirmHistoryOwner, canShare, onIdentityChanged, onSummary]);
+
   async function recover(entry: ShareSummary) {
     if (busy || !canShare(entry)) return;
     const version = epoch.current, signal = lifecycle.current?.signal;
-    if (!signal) return; setBusy(`share:${entry.id}`); setError(""); setFeedback(""); setRecovered(null);
+    if (!signal) return; operationBusy.current = true; quietRequest.current?.abort(); setBusy(`share:${entry.id}`); setError(""); setFeedback(""); setRecovered(null);
     const current = () => version === epoch.current && !signal.aborted;
     try {
       await confirmOwner(signal); if (!current()) return;
-      const result = await request<{ entries: ShareSummary[] }>("/shares", undefined, undefined, signal); if (!current()) return;
+      const result = await request<ShareHistory>("/shares", undefined, undefined, signal); if (!current()) return;
+      await confirmHistoryOwner(result, signal); if (!current()) return;
       setEntries(result.entries.slice(0, 20)); result.entries.forEach(onSummary);
       const latest = result.entries.find((value) => value.id === entry.id);
       if (!latest || !canShare(latest)) throw new ApiError("这条交接现在无法分享，请重新生成。");
@@ -59,13 +108,13 @@ export function RecentHandoffs({ ownerId, refreshTick, now, onIdentityChanged, o
       if (!current() || (e instanceof Error && e.name === "AbortError")) return;
       if (e instanceof ApiError && e.status === 401) { await onIdentityChanged(); return; }
       setRecovered(null); setError(e instanceof Error ? e.message : "链接恢复失败，请重试。");
-    } finally { if (current()) setBusy(null); }
+    } finally { if (current()) { operationBusy.current = false; setBusy(null); } }
   }
 
   async function revoke(entry: ShareSummary) {
     if (busy || entry.revoked || expired(entry.expires_at)) return;
     const version = epoch.current, signal = lifecycle.current?.signal;
-    if (!signal) return; setBusy(`revoke:${entry.id}`); setError(""); setFeedback(""); setRecovered(null); onRevoke(entry.id);
+    if (!signal) return; operationBusy.current = true; quietRequest.current?.abort(); setBusy(`revoke:${entry.id}`); setError(""); setFeedback(""); setRecovered(null); onRevoke(entry.id);
     const current = () => version === epoch.current && !signal.aborted;
     try {
       await confirmOwner(signal); if (!current()) return;
@@ -77,7 +126,7 @@ export function RecentHandoffs({ ownerId, refreshTick, now, onIdentityChanged, o
       if (e instanceof ApiError && e.status === 401) { await onIdentityChanged(); return; }
       setEntries((previous) => previous.map((value) => value.id === entry.id ? { ...value, url: undefined } : value));
       setError(e instanceof Error ? e.message : "撤销未完成，请刷新记录后重试。");
-    } finally { if (current()) setBusy(null); }
+    } finally { if (current()) { operationBusy.current = false; setBusy(null); } }
   }
 
   const recoveredIsValid = recovered && !recovered.revoked && !expired(recovered.expires_at, now) && recovered.progress?.step !== "collected" && recovered.url;

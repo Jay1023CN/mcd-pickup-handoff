@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, index } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const mobileDevices = sqliteTable("mobile_devices", {
@@ -28,9 +28,12 @@ export const mobileShares = sqliteTable("mobile_shares", {
   expiresAt: integer("expires_at").notNull(), verified: integer("verified").notNull(),
   revoked: integer("revoked").notNull().default(0), refreshedAt: integer("refreshed_at").notNull().default(0),
   progressStep: text("progress_step"), progressUpdatedAt: text("progress_updated_at"),
+  deliveryUrl: text("delivery_url"), issueKey: text("issue_key"),
 }, (t) => [
   index("mobile_shares_owner_history_idx").on(t.ownerId, t.expiresAt),
   index("mobile_shares_retention_idx").on(t.expiresAt),
+  uniqueIndex("mobile_shares_issue_identity_idx").on(t.ownerId, t.deviceId, t.issueKey).where(sql`${t.issueKey} IS NOT NULL`),
+  index("mobile_shares_delivery_cleanup_idx").on(t.expiresAt).where(sql`${t.deliveryUrl} IS NOT NULL`),
   index("mobile_shares_cleanup_idx").on(t.expiresAt).where(sql`${t.verified} != 0 OR json_extract(${t.card}, '$.pickup_code') != ''`),
 ]);
 

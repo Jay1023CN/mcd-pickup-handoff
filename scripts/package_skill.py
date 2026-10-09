@@ -20,14 +20,15 @@ FILES = (
     "references/tools.md", "references/input-format.md", "examples/order.synthetic.json",
     "docs/MCP_TOOLS.md", "docs/SOURCES.md", "docs/REGISTRATION.md", "docs/VALIDATION.md", "docs/demo.html", "docs/demo.png", "docs/demo.txt",
     "scripts/mobile_bridge.py", "scripts/mobile_connector.pyw", "打开电脑连接.pyw",
+    "scripts/runtime_paths.py", "docs/WINDOWS_CONNECTOR.md", "docs/DEMO_SCRIPT.md",
     "docs/WEB_ARCHITECTURE.md", "docs/PROJECT_LAYOUT.md",
-    "assets/brand/handoff-concept.png", "assets/brand/handoff-mark.svg", "docs/BRAND.md",
+    "assets/brand/handoff-concept.png", "assets/brand/handoff-mark.svg", "assets/brand/handoff-mark.png", "docs/BRAND.md",
     "scripts/vendor/qrcodegen.py", "scripts/vendor/LICENSE.qrcodegen.txt",
 )
 
 
 def main():
-    output = ROOT / "packages/mcd-pickup-handoff-v0.4.0.zip"
+    output = ROOT / "packages/mcd-pickup-handoff-v0.5.0.zip"
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         for name in FILES:

@@ -6,7 +6,7 @@
 
 麦麦取餐交接官把这些信息放进一个手机链接。选好订单，发给朋友；朋友打开就能看门店、餐品和取餐码，到店前再点一下刷新。信息直接从麦当劳 MCP 查询，省去截图、抄码和来回解释。
 
-[打开手机网页](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/) · [体验演示](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/demo) · [下载连接器与 Skill v0.4.0](packages/mcd-pickup-handoff-v0.4.0.zip) · [参赛报名 #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)
+[打开手机网页](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/) · [体验演示](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/demo) · [Windows 免安装连接器](packages/mcd-pickup-handoff-windows-v0.5.0.zip) · [Skill 与源码包 v0.5.0](packages/mcd-pickup-handoff-v0.5.0.zip) · [参赛报名 #128](https://github.com/M-China/mcd-developer-innovation-challenge/issues/128)
 
 正在开会、排队，或者朋友正好路过门店，一次交接就够了。官方返回取餐码时默认带上，也可以隐藏。朋友能直接反馈“我来取／我到店了／已帮你取好”，你在最近交接里就能看到；需要时还能找回链接或撤销。
 
@@ -16,10 +16,10 @@
 
 ## 手机使用
 
-电脑端需要 Python 3.10+，无需安装第三方 Python 包。一次连接后，选单和分享都在手机网页完成。
+Windows 使用免安装连接器，无需安装 Python。电脑连接一次后，选单和分享都在手机网页完成。
 
-1. 克隆仓库或下载连接器包，Token 从[麦当劳 MCP 平台](https://open.mcd.cn/mcp)申请。
-2. Windows 双击 `打开电脑连接.pyw`，在连接窗口里保存 Token，点击“启动连接”和“打开手机入口”；已有本机 `.env` 可以直接沿用。其他系统运行 `python3 scripts/mobile_bridge.py --pair`。
+1. 下载上面的 Windows 免安装包并解压，Token 从[麦当劳 MCP 平台](https://open.mcd.cn/mcp)申请。
+2. 双击“麦麦电脑连接器.exe”，在连接窗口里保存 Token，点击“启动连接”和“打开手机入口”。
 3. 用手机扫描连接窗口里的二维码，或在手机网页输入临时配对码。不用注册账号。
 4. 配对后选择到店订单，确认后生成交接链接。另一部手机也可以用电脑新生成的配对码连接。
 5. 点击“发给朋友”。朋友无需登录，打开链接即可查看，到店前可再刷新一次。
@@ -30,7 +30,9 @@
 
 生成和刷新都会重新查询订单。交接链接十分钟有效，可随时撤销；订单已完成、取消或信息发生变化时收起旧码。已完成、未支付、配送和无法识别状态的订单不能生成待取餐交接。
 
-MCP Token 留在电脑的 `.env`，不上传网页或 GitHub，也不会打进包。电脑连接器只向外发起 HTTPS 请求，无需开放电脑端口；使用时保持电脑连接在线。云端仅保存交接所需信息和临时任务，按配对身份隔离。
+MCP Token 留在电脑，不上传网页或 GitHub，也不会打进包。免安装版保存在当前 Windows 用户的本机数据目录，源码版使用项目 `.env`。电脑连接器只向外发起 HTTPS 请求，无需开放电脑端口；使用时保持电脑连接在线。云端仅保存交接所需信息和临时任务，按配对身份隔离。
+
+关闭电脑窗口后，后台仍然连接；需要停止时，重新打开窗口点击“停止连接”。[电脑连接说明](docs/WINDOWS_CONNECTOR.md)包含更新和数据位置。源码版需要 Python 3.10+，双击 `打开电脑连接.pyw`；其他系统运行 `python3 scripts/mobile_bridge.py --pair`，无需第三方 Python 包。
 
 取餐按官方订单页和门店要求办理。需要离线 HTML/TXT 时，可使用开发工作台 `start-local.cmd`；文件和截图不能在线刷新。
 
@@ -60,7 +62,7 @@ WorkBuddy 的 MCP 配置可参考 [mcp-config.example.json](mcp-config.example.j
 python3 scripts/render_card.py examples/order.synthetic.json --output private/demo --include-pickup-code
 python3 -m unittest discover -s tests -v
 cd web
-node --test tests/mobile-api.test.mjs tests/mobile-renew.test.mjs tests/mobile-session.test.mjs tests/mobile-progress.test.mjs tests/retention.test.mjs
+node --test tests/mobile-api.test.mjs tests/mobile-renew.test.mjs tests/mobile-session.test.mjs tests/mobile-progress.test.mjs tests/mobile-delivery.test.mjs tests/retention.test.mjs
 cd ..
 python3 scripts/package_skill.py
 ```

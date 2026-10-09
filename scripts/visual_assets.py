@@ -4,7 +4,9 @@ from functools import lru_cache
 from pathlib import Path
 import re
 
-ROOT = Path(__file__).resolve().parents[1]
+from runtime_paths import resource_root
+
+ROOT = resource_root()
 
 
 @lru_cache(maxsize=32)

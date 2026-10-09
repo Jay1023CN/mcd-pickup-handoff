@@ -19,7 +19,7 @@ function fixture() {
   async function issued(d) {
     const j = await call("/jobs", { action: "create", args: { selection: "opaque", include_pickup_code: true } }, { cookie: d.cookie }); assert.equal(j.status, 200);
     const poll = await call("/devices/poll", { device_id: d.device_id }, { token: d.device_token }); assert.equal(poll.data.job.id, j.data.job_id);
-    const complete = await call("/devices/complete", { device_id: d.device_id, job_id: j.data.job_id, result: { card: card(), record_id: "a".repeat(32), expires_at: new Date(now + 600_000).toISOString(), queried_at: new Date(now).toISOString() } }, { token: d.device_token }); assert.equal(complete.status, 200);
+    const complete = await call("/devices/complete", { device_id: d.device_id, job_id: j.data.job_id, result: { card: card(), record_id: j.data.job_id, expires_at: new Date(now + 600_000).toISOString(), queried_at: new Date(now).toISOString() } }, { token: d.device_token }); assert.equal(complete.status, 200);
     const done = await call(`/jobs/${j.data.job_id}`, undefined, { cookie: d.cookie });
     return { id: done.data.result.share.id, token: done.data.result.share.url.split("#access=")[1], create_job_id: j.data.job_id };
   }
@@ -101,7 +101,8 @@ test("an official refresh after manual collection keeps its saved result but can
 test("manual collection also hides code and reshare URL from the owner's old create-job projection", async () => {
   const f = fixture(), d = await f.paired(), s = await f.issued(d), other = await f.issued(d);
   const before = f.db.connection.prepare("SELECT result FROM mobile_jobs WHERE id=?").get(s.create_job_id).result;
-  assert.ok(before.includes("SYNTHETIC_CODE")); assert.ok(before.includes(s.token));
+  assert.ok(before.includes("SYNTHETIC_CODE")); assert.equal(before.includes(s.token), false);
+  assert.ok(f.db.connection.prepare("SELECT delivery_url FROM mobile_shares WHERE id=?").get(s.id).delivery_url.includes(s.token));
   await f.call(`/shares/${s.id}/progress`, { step: "collected" }, { token: s.token });
   const old = await f.call(`/jobs/${s.create_job_id}`, undefined, { cookie: d.cookie });
   assert.equal(old.status, 200); assert.equal(old.data.state, "done"); assert.equal(old.data.result.card.pickup_code, ""); assert.equal(old.data.result.share.url, undefined); assert.equal(old.data.result.card.status_text, "配餐中");

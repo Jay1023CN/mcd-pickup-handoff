@@ -71,6 +71,24 @@ class ConnectorTests(unittest.TestCase):
             self.assertEqual(self.controller.start(), "连接程序正在运行。")
             self.launcher.assert_not_called()
 
+    def test_frozen_start_reuses_exe_as_independent_hidden_bridge_without_python(self):
+        self.controller.configure("SYNTHETIC_MCP_TOKEN")
+        executable = self.root / "McdPickupHandoff.exe"
+        executable.touch()
+        with patch.object(gui.sys, "frozen", True, create=True), patch.object(gui.sys, "executable", str(executable)):
+            self.controller.start()
+        command = self.launcher.call_args.args[0]
+        self.assertEqual(command[:2], [str(executable), "--bridge"])
+        self.assertNotIn("-X", command)
+        self.assertFalse(any(part.endswith(".py") for part in command))
+        self.assertIn("--no-browser", command)
+        options = self.launcher.call_args.kwargs
+        self.assertEqual(options["env"]["PYINSTALLER_RESET_ENVIRONMENT"], "1")
+        self.assertEqual(options["cwd"], str(self.root))
+        if os.name == "nt":
+            self.assertEqual(options["creationflags"], gui.subprocess.CREATE_NO_WINDOW)
+        self.assertNotIn("SYNTHETIC_MCP_TOKEN", json.dumps(command))
+
     def test_stop_is_graceful_and_preserves_private_records(self):
         write_private(self.directory / "completion.json", {"test": "keep"})
         self.controller.stop()
@@ -155,11 +173,8 @@ class ConnectorTests(unittest.TestCase):
 
     def test_native_tk_window_renders_without_showing_saved_token(self):
         self.controller.configure("SYNTHETIC_SAVED_TOKEN")
-        source_logo = Path(__file__).resolve().parents[1] / "assets/brand/handoff-concept.png"
-        if source_logo.is_file():
-            destination = self.root / "assets/brand/handoff-concept.png"
-            destination.parent.mkdir(parents=True)
-            destination.write_bytes(source_logo.read_bytes())
+        source_logo = Path(__file__).resolve().parents[1] / "assets/brand/handoff-mark.png"
+        self.assertTrue(source_logo.is_file())
         window = tk.Tk()
         window.withdraw()
         self.addCleanup(window.destroy)
@@ -172,10 +187,10 @@ class ConnectorTests(unittest.TestCase):
         self.assertNotIn("SYNTHETIC_SAVED_TOKEN", app.saved_text.get())
         self.assertEqual(app.start_button.cget("text"), "启动连接")
         self.assertEqual(app.open_button.cget("text"), "打开手机入口")
+        self.assertEqual(app.stop_button.cget("text"), "停止连接")
         self.assertEqual(app.repair_button.cget("text"), "断开原手机，重新配对")
-        if source_logo.is_file():
-            self.assertIsNotNone(app.brand_icon)
-            self.assertLessEqual(max(app.brand_icon.width(), app.brand_icon.height()), 64)
+        self.assertIsNotNone(app.brand_icon)
+        self.assertEqual((app.brand_icon.width(), app.brand_icon.height()), (64, 64))
         info = {"pair_code": "c" * 16, "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(), "url": "https://example.invalid/#pair=" + "c" * 16, "notice": "模拟手机配对"}
         app.events.put((True, info)); app.poll()
         self.assertEqual(app.pair_code_text.get(), "c" * 16)
@@ -198,6 +213,76 @@ class ConnectorTests(unittest.TestCase):
         self.assertFalse(app.qr_label.cget("image"))
         self.assertEqual(str(app.copy_code_button.cget("state")), "disabled")
         app.closed = True
+
+    def test_short_screen_keeps_all_controls_reachable_at_three_font_scales(self):
+        # These are real Tk widgets/font rasterization. The OS display settings
+        # stay unchanged; the logical work-area cases also stress DPI virtualization.
+        for scale in (1, 1.25, 1.5):
+            for area in ((0, 0, 1366, 728), (0, 0, int(1366 / scale), int(728 / scale))):
+                with self.subTest(scale=scale, area=area), patch.object(gui, "work_area", return_value=area):
+                    window = tk.Tk()
+                    window.withdraw()
+                    window.tk.call("tk", "scaling", 96 * scale / 72)
+                    app = gui.ConnectorWindow(window, self.controller)
+                    try:
+                        info = {"pair_code": "c" * 16, "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(), "url": "https://example.invalid/#pair=" + "c" * 16, "notice": "模拟手机配对"}
+                        app.show_pair(info)
+                        window.deiconify()
+                        window.update()
+                        self.assertLessEqual(window.winfo_width(), area[2] - 16)
+                        self.assertLessEqual(window.winfo_height(), area[3] - 16)
+                        self.assertLessEqual(window.minsize()[1], window.winfo_height())
+                        if os.name == "nt":
+                            import ctypes
+                            from ctypes import wintypes
+                            rect = wintypes.RECT()
+                            hwnd = ctypes.windll.user32.GetAncestor(window.winfo_id(), 2)
+                            ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+                            self.assertGreaterEqual(rect.left, area[0])
+                            self.assertGreaterEqual(rect.top, area[1])
+                            self.assertLessEqual(rect.right, area[2])
+                            self.assertLessEqual(rect.bottom, area[3])
+                        viewport = app.canvas.winfo_height()
+                        overflow = app.content.winfo_reqheight() > viewport
+                        self.assertEqual(bool(app.scrollbar.winfo_ismapped()), overflow)
+                        if scale == 1:
+                            self.assertFalse(overflow)
+                            self.assertLessEqual(app.content.winfo_reqheight(), viewport)
+                        if overflow:
+                            app.scroll_wheel(Mock(delta=-120))
+                            window.update_idletasks()
+                            self.assertGreater(app.canvas.yview()[0], 0)
+
+                        def reveal(widget):
+                            app.canvas.yview_moveto(0)
+                            window.update_idletasks()
+                            offset = widget.winfo_rooty() - app.content.winfo_rooty()
+                            app.canvas.yview_moveto(max(0, (offset - 8) / app.content.winfo_height()))
+                            window.update_idletasks()
+
+                        def visible(widget):
+                            self.assertGreaterEqual(widget.winfo_rooty(), app.canvas.winfo_rooty())
+                            self.assertLessEqual(widget.winfo_rooty() + widget.winfo_height(), app.canvas.winfo_rooty() + viewport)
+                            self.assertGreaterEqual(widget.winfo_rootx(), app.canvas.winfo_rootx())
+                            self.assertLessEqual(widget.winfo_rootx() + widget.winfo_width(), app.canvas.winfo_rootx() + app.canvas.winfo_width())
+
+                        reveal(app.start_button)
+                        for button in (app.start_button, app.open_button, app.stop_button):
+                            visible(button)
+                        reveal(app.pair_frame)
+                        for widget in (app.qr_label, app.copy_code_button, app.copy_link_button):
+                            visible(widget)
+                        app.canvas.yview_moveto(1)
+                        window.update_idletasks()
+                        visible(app.notice_label)
+                        visible(app.repair_button)
+                        self.assertIsNotNone(app.pair_qr)
+                    finally:
+                        app.closed = True
+                        app.executor.shutdown(wait=False)
+                        for timer in window.tk.call("after", "info"):
+                            window.after_cancel(timer)
+                        window.destroy()
 
     def test_native_pythonw_background_start_duplicate_and_graceful_exit(self):
         # A genuine hidden interpreter runs the Bridge loop against synthetic transport.

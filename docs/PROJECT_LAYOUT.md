@@ -7,10 +7,14 @@
 | `web/db/`、`web/drizzle/` | 数据模型、按顺序执行的数据库迁移 | 是 |
 | `web/tests/`、`tests/` | 云端和本机测试 | 是 |
 | `scripts/` | 本机 MCP 连接器、Skill 和打包工具 | 是 |
+| `desktop/` | Windows EXE 入口、白名单构建脚本和许可证 | 是 |
+| `packages/` | 可下载的版本包和 SHA-256 校验文件 | 是 |
 | `docs/`、`examples/`、`templates/` | 说明、明确标注的模拟订单和交接模板 | 是 |
 | `.env` | 本机 MCP Token | 否 |
 | `private/mobile/` | 本机设备凭据、连接状态和待重试任务 | 否 |
 | `private/handoffs/` | 本机签名密钥、真实订单和交接记录 | 否 |
+| `private/desktop-build/` | 隔离构建依赖、构建记录和 EXE 模拟验收 | 否 |
+| `%LOCALAPPDATA%/McdPickupHandoff` | Windows 免安装版的本机凭据及交接记录 | 否 |
 | `web/node_modules/`、`web/dist/`、`web/.wrangler/` | 依赖、构建和本地测试数据库 | 否 |
 | 项目同级 `.sites/mcd-pickup-handoff/` | Sites 专用部署 checkout | 不属于本仓库 |
 

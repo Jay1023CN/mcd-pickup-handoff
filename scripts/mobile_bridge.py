@@ -19,8 +19,9 @@ import webbrowser
 
 from live_handoff import HandoffError, HandoffService
 from mcp_readonly import read_token
+from runtime_paths import data_root
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = data_root()
 DIRECTORY = ROOT / "private/mobile"
 DEFAULT_SITE = "https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site"
 USER_AGENT = "Mozilla/5.0 (compatible; MCDPickupConnector/0.4; +https://github.com/Jay1023CN/mcd-pickup-handoff)"

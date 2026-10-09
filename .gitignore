@@ -7,3 +7,5 @@ private/
 *.local.json
 .mcp.json
 *.log
+packages/windows/*.exe
+/build/

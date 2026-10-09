@@ -75,7 +75,7 @@ async function finish(f, d, j, result) {
 }
 async function createdShare(f, d, user = "owner-a") {
   const job = await startJob(f, d, "create", { selection: "opaque-selection", include_pickup_code: true }, user);
-  await finish(f, d, job, { card: mockCard(f), record_id: "a".repeat(32), expires_at: new Date(f.time() + 600_000).toISOString(), queried_at: new Date(f.time()).toISOString() });
+  await finish(f, d, job, { card: mockCard(f), record_id: job.id, expires_at: new Date(f.time() + 600_000).toISOString(), queried_at: new Date(f.time()).toISOString() });
   const done = await f.call(`/jobs/${job.id}`, undefined, { user }); assert.equal(done.data.state, "done");
   assert.equal(done.data.result.record_id, undefined);
   const { id, url } = done.data.result.share;
@@ -148,7 +148,7 @@ test("completed create gives a single-share capability and keeps record ID priva
   const f = fixture(), d = await paired(f), s = await createdShare(f, d);
   assert.equal(s.result.card.pickup_code, "TEST-CODE");
   const row = f.db.connection.prepare("SELECT * FROM mobile_shares WHERE id=?").get(s.id);
-  assert.notEqual(row.token_hash, s.token); assert.equal(row.record_id, "a".repeat(32));
+  assert.notEqual(row.token_hash, s.token); assert.equal(row.record_id, s.job.id);
   const view = await f.call(`/shares/${s.id}/view`, {}, { token: s.token });
   assert.equal(view.status, 200); assert.equal(view.data.verified, true); assert.equal(view.data.card.pickup_code, "TEST-CODE");
   assert.equal(view.data.record_id, undefined); assert.equal(view.data.owner_id, undefined);
@@ -164,7 +164,7 @@ test("share refresh has scoped job access and verified latest content", async ()
   assert.equal((await f.call(`/shares/${b.id}/jobs/${refresh.data.job_id}`, undefined, { token: b.token })).status, 404);
   assert.equal((await f.call(`/shares/${a.id}/view`, {}, { token: a.token })).data.card.pickup_code, "");
   const j = (await f.call("/devices/poll", { device_id: d.device_id }, { token: d.device_token })).data.job;
-  assert.equal(j.action, "refresh"); assert.deepEqual(j.args, { record_id: "a".repeat(32) });
+  assert.equal(j.action, "refresh"); assert.deepEqual(j.args, { record_id: a.job.id });
   f.advance(1000);
   await finish(f, d, j, { verified: true, card: mockCard(f), queried_at: new Date(f.time()).toISOString(), notice: "已复查" });
   const job = await f.call(`/shares/${a.id}/jobs/${j.id}`, undefined, { token: a.token });
@@ -310,7 +310,8 @@ test("expired completion is acknowledged, discards old result and allows the nex
 test("expiry cleanup erases owner capability results and pickup codes without touching another valid owner", async () => {
   const f = fixture(), aDevice = await paired(f), a = await createdShare(f, aDevice);
   const initialResult = f.db.connection.prepare("SELECT result FROM mobile_jobs WHERE id=?").get(a.job.id).result;
-  assert.ok(initialResult.includes(a.token));
+  assert.equal(initialResult.includes(a.token), false);
+  assert.ok(f.db.connection.prepare("SELECT delivery_url FROM mobile_shares WHERE id=?").get(a.id).delivery_url.includes(a.token));
   f.advance(300_000);
   const bDevice = await paired(f, "owner-b"), b = await createdShare(f, bDevice, "owner-b");
   const bBefore = f.db.connection.prepare("SELECT result FROM mobile_jobs WHERE id=?").get(b.job.id).result;
@@ -318,14 +319,14 @@ test("expiry cleanup erases owner capability results and pickup codes without to
   await f.call("/session", undefined, { user: "owner-b" });
   const expiredResult = f.db.connection.prepare("SELECT result FROM mobile_jobs WHERE id=?").get(a.job.id).result;
   assert.equal(expiredResult, null);
-  const oldCard = f.db.connection.prepare("SELECT card,verified FROM mobile_shares WHERE id=?").get(a.id);
-  assert.equal(JSON.parse(oldCard.card).pickup_code, ""); assert.equal(oldCard.verified, 0);
+  const oldCard = f.db.connection.prepare("SELECT card,verified,delivery_url FROM mobile_shares WHERE id=?").get(a.id);
+  assert.equal(JSON.parse(oldCard.card).pickup_code, ""); assert.equal(oldCard.verified, 0); assert.equal(oldCard.delivery_url, null);
   const expiredView = await f.call(`/jobs/${a.job.id}`, undefined, { user: "owner-a" });
   assert.equal(expiredView.data.state, "failed"); assert.equal(expiredView.data.result, undefined);
   assert.equal(f.db.connection.prepare("SELECT result FROM mobile_jobs WHERE id=?").get(b.job.id).result, bBefore);
   assert.equal(JSON.parse(f.db.connection.prepare("SELECT card FROM mobile_shares WHERE id=?").get(b.id).card).pickup_code, "TEST-CODE");
   assert.equal(f.db.connection.prepare("SELECT count(*) AS n FROM mobile_rate_limits WHERE expires_at<=?").get(f.time()).n, 0);
-  const saved = JSON.stringify(f.db.connection.prepare("SELECT result FROM mobile_jobs").all()); assert.equal(saved.includes(a.token), false); assert.ok(saved.includes(b.token));
+  const saved = JSON.stringify(f.db.connection.prepare("SELECT delivery_url FROM mobile_shares").all()); assert.equal(saved.includes(a.token), false); assert.ok(saved.includes(b.token));
 });
 
 test("revocation erases associated creation and completed refresh payloads only", async () => {
@@ -341,7 +342,7 @@ test("revocation erases associated creation and completed refresh payloads only"
   }
   assert.equal(JSON.parse(f.db.connection.prepare("SELECT card FROM mobile_shares WHERE id=?").get(a.id).card).pickup_code, "");
   assert.equal((await f.call(`/jobs/${a.job.id}`, undefined, { user: "owner-a" })).data.result, undefined);
-  assert.ok(f.db.connection.prepare("SELECT result FROM mobile_jobs WHERE id=?").get(b.job.id).result.includes(b.token));
+  assert.ok(f.db.connection.prepare("SELECT delivery_url FROM mobile_shares WHERE id=?").get(b.id).delivery_url.includes(b.token));
   assert.equal((await f.call(`/shares/${b.id}/view`, {}, { token: b.token })).data.card.pickup_code, "TEST-CODE");
 });
 
@@ -427,12 +428,12 @@ test("revoked and expired summaries stay visible without URL or code", async () 
   assert.equal(JSON.stringify(entries).includes("TEST-CODE"), false); assert.equal(JSON.stringify(entries).includes(expired.token), false);
 });
 
-test("direct Skill publication has a revocation summary without inventing a recoverable URL", async () => {
+test("direct Skill publication has a recoverable link and a revocation summary", async () => {
   const f = fixture(), d = await paired(f);
   const publication = await f.call("/devices/share", { device_id: d.device_id, card: mockCard(f), record_id: "c".repeat(32), expires_at: new Date(f.time() + 600_000).toISOString(), queried_at: new Date(f.time()).toISOString() }, { token: d.device_token });
   assert.equal(publication.status, 200);
   const entries = (await f.call("/shares", undefined, { user: "owner-a" })).data.entries;
-  assert.equal(entries.length, 1); assert.equal(entries[0].id, publication.data.share.id); assert.equal(entries[0].url, undefined);
+  assert.equal(entries.length, 1); assert.equal(entries[0].id, publication.data.share.id); assert.equal(entries[0].url, publication.data.share.url);
   assert.equal((await f.call(`/shares/${entries[0].id}/revoke`, {}, { user: "owner-a" })).status, 200);
   assert.equal((await f.call("/shares", undefined, { user: "owner-a" })).data.entries[0].revoked, true);
 });
@@ -455,8 +456,8 @@ test("share summaries are restricted to the recent seven days and the twenty lat
 test("recovered URL must come from the same owner and device as its share", async () => {
   const f = fixture(), d = await paired(f), s = await createdShare(f, d);
   const ownerId = (await f.call("/session", undefined, { user: "owner-a" })).data.user.id;
-  f.db.connection.prepare("UPDATE mobile_jobs SET owner_id='owner-b' WHERE id=?").run(s.job.id);
-  assert.equal((await f.call("/shares", undefined, { user: "owner-a" })).data.entries[0].url, undefined);
-  f.db.connection.prepare("UPDATE mobile_jobs SET owner_id=?,device_id='other-device' WHERE id=?").run(ownerId, s.job.id);
+  f.db.connection.prepare("UPDATE mobile_shares SET owner_id='owner-b' WHERE id=?").run(s.id);
+  assert.equal((await f.call("/shares", undefined, { user: "owner-a" })).data.entries.length, 0);
+  f.db.connection.prepare("UPDATE mobile_shares SET owner_id=?,device_id='other-device' WHERE id=?").run(ownerId, s.id);
   assert.equal((await f.call("/shares", undefined, { user: "owner-a" })).data.entries[0].url, undefined);
 });
