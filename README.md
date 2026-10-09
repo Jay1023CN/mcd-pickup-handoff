@@ -14,7 +14,7 @@
 
 演示使用模拟订单，无需登录。实际使用读取自己的麦当劳订单，朋友只看到分享给他的这一笔。
 
-[看 44 秒操作演示](https://raw.githubusercontent.com/Jay1023CN/mcd-pickup-handoff/main/docs/demo-walkthrough.webm)：手机选单、生成带码链接、朋友查看并反馈取好。视频全程标注模拟数据，无音频。
+[看 44 秒操作演示](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/watch.html)：手机选单、生成带码链接、朋友查看并反馈取好。视频全程标注模拟数据，无音频。
 
 ## 手机使用
 

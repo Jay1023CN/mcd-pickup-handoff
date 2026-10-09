@@ -1,6 +1,6 @@
 # 90 秒演示：这顿麦当劳，帮我取一下
 
-已录制[44 秒操作视频](https://raw.githubusercontent.com/Jay1023CN/mcd-pickup-handoff/main/docs/demo-walkthrough.webm)，390×844 手机画面，无音频。视频展示公网模拟页的实际点击，全程标注模拟数据；包含选单、生成、复制分享、朋友刷新与反馈取好。下面保留带口播的 90 秒录制方案。
+已录制[44 秒操作视频](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/watch.html)，390×844 手机画面，无音频。播放页使用 MP4，支持直接播放和下载。视频展示公网模拟页的实际点击，全程标注模拟数据；包含选单、生成、复制分享、朋友刷新与反馈取好。下面保留带口播的 90 秒录制方案。
 
 录制入口：[手机模拟演示](https://mcd-pickup-handoff.epic-rain-2778.chatgpt.site/demo)。用 390px 手机画幅，发起人和朋友各开一个页面。订单操作画面始终保留“模拟数据”字幕，保留页面自带的模拟标记。
 

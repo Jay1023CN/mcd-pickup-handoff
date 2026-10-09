@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="44 秒看懂麦麦取餐交接官：选单、发链接、朋友反馈取好。全程模拟数据。">
+  <title>44 秒操作演示 · 麦麦取餐交接官</title>
+  <link rel="icon" href="/favicon.svg">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f8f5eb;color:#28271f;font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif}main{max-width:760px;margin:auto;padding:24px 20px 36px}header{display:flex;align-items:center;gap:12px;margin-bottom:28px}header img{width:44px;height:44px}header a{color:inherit;text-decoration:none;font-weight:700}h1{font-size:clamp(25px,5vw,36px);margin:0 0 12px;line-height:1.3}p{line-height:1.7;margin:0 0 18px}.note{color:#6b6256;font-size:14px}.player{max-width:390px;margin:24px auto;background:#eee5d3;border:1px solid #dfd5c1;border-radius:14px;overflow:hidden}video{display:block;width:100%;max-height:74svh;aspect-ratio:390/844;background:#191815;object-fit:contain}.actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}a{color:#ae2d24;text-underline-offset:4px}.button{display:inline-block;padding:12px 18px;border-radius:8px;background:#b72e25;color:white;text-decoration:none;font-weight:650}.error{padding:12px 16px;margin:0;background:#fff0d7;color:#6b4522}.download{display:block;text-align:center;margin-top:16px;font-size:14px}a:focus-visible{outline:3px solid #b72e25;outline-offset:4px}
+  </style>
+</head>
+<body><main>
+  <header><img src="/brand/handoff-mark.svg" alt="餐袋与交接箭头"><a href="/">麦麦取餐交接官</a></header>
+  <h1>这顿麦当劳，帮我取一下。</h1>
+  <p>44 秒看完整个过程：手机选单、生成带码链接，朋友打开、刷新，再反馈取好。</p>
+  <p class="note">全程模拟数据 · 无音频。点击播放，操作说明已放在画面里。</p>
+  <div class="player">
+    <video id="demo-video" controls playsinline preload="metadata" poster="/media/demo-poster.png" aria-label="44 秒手机取餐交接模拟操作视频">浏览器暂时无法播放，请使用下方的 MP4 下载入口。</video>
+    <p id="video-error" class="error" role="status" hidden>视频暂时没有加载成功，可以下载 MP4 播放，或直接体验模拟演示。</p>
+  </div>
+  <div class="actions"><a class="button" href="/demo">自己试一遍 →</a><a class="button" href="/">用自己的订单 →</a></div>
+  <a class="download" href="/media/demo-walkthrough.mp4" download="麦麦取餐交接演示.mp4">下载 MP4 视频</a>
+  <script>
+    const video=document.getElementById('demo-video');
+    const error=document.getElementById('video-error');
+    video.addEventListener('error',function(){error.hidden=false;});
+    fetch('/media/demo-walkthrough.mp4').then(function(response){
+      if(!response.ok)throw new Error('Video unavailable');
+      return response.blob();
+    }).then(function(blob){video.src=URL.createObjectURL(blob);}).catch(function(){error.hidden=false;});
+  </script>
+</main></body></html>
