@@ -98,6 +98,26 @@ python3 scripts/render_card.py examples/order.synthetic.json --output private/de
 
 ## 独立连接官方 MCP
 
+先到 [官方平台](https://open.mcd.cn/mcp) 申请自己的 Token。已在环境中配置 `MCD_MCP_TOKEN` 时运行：
+
+```sh
+python3 scripts/connect_mcp.py
+```
+
+也可以在自己的终端运行下面命令，再在隐藏输入提示中粘贴 Token；脚本只在内存中使用，不保存凭据：
+
+```sh
+python3 scripts/connect_mcp.py --prompt-token
+```
+
+入口会完成 MCP 握手并读取工具 schema，保存到 `private/mcp/tools.json`，不会自动查询任何订单。确认 `order-list` 的实际参数并在本地准备参数 JSON 后，可直接查询：
+
+```sh
+python3 scripts/connect_mcp.py --prompt-token --tool order-list --args-file private/order-list.args.json
+```
+
+结果仅写入 `private/mcp/order-list.result.json`，终端不打印订单内容。接着按实际 schema 查询必要的 `query-order`，依照对应 Skill 的输入契约生成取餐卡或轨迹。Token 不能发进聊天、GitHub 或公开日志。
+
 如果本地已经安全配置 `MCD_MCP_TOKEN`，也可以使用只读 CLI：
 
 ```sh
@@ -140,6 +160,7 @@ python3 scripts/package_skill.py
 SKILL.md                     Skill 工作流程
 scripts/render_card.py       白名单卡片生成器
 scripts/mcp_readonly.py      官方 MCP 只读客户端
+scripts/connect_mcp.py       隐藏输入 Token 的真实连接入口
 scripts/footprints.py        订单范围、去重与聚合统计
 scripts/render_footprints.py 手绘订单手账生成器
 scripts/package_skill.py     安装包生成器

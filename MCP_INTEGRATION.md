@@ -7,6 +7,7 @@
 - 传输：Streamable HTTP，认证：本地配置的 Bearer Token
 - 官方说明：https://github.com/M-China/mcd-mcp-server
 - 配置示例：[mcp-config.example.json](mcp-config.example.json)
+- 实际连接入口：`python3 scripts/connect_mcp.py`，读取环境变量 MCD_MCP_TOKEN；或在本地终端加 `--prompt-token` 隐藏输入，仅保存在进程内存。
 
 ## 实现的 Tool 使用流程
 
@@ -48,3 +49,5 @@ order-list 只承诺“近期”记录，不保证全年。报告始终展示范
 **截至当前版本：连接流程已实现，真实 MCP 调用尚未验证。** 当前开发环境未配置麦当劳 Token，样例全部为明确标注的模拟数据。这份说明记录实现方式，不宣称已查询过真实订单或获得代取授权。
 
 正式报名之前，需要用参赛者自己的 MCP 连接执行实际 order-list/query-order，验证字段映射并补充不含 Token、完整订单 ID、电话、住址或取餐凭证的联调记录。官方规则要求“参赛项目须真实使用麦当劳 MCP 能力”。
+
+本次云环境未配置 Token；不带凭据的 initialize 请求返回 HTTP 403，响应是“系统错误”。这只记录未认证连接尝试，不证明 Token 无效或已完成真实接入。后续需要有凭据的请求确认；若仍为 403，核对官方服务地区与网络访问条件。
