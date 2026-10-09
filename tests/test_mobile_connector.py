@@ -34,7 +34,9 @@ class ConnectorTests(unittest.TestCase):
         self.launcher = Mock(return_value=self.process)
         self.prepare = Mock()
         self.controller = gui.ConnectorController(self.root, self.directory, launcher=self.launcher, prepare=self.prepare)
-        self.environment = patch.dict(os.environ, {}, clear=True)
+        # Keep the test display, while isolating credentials and app settings.
+        display = {key: os.environ[key] for key in ("DISPLAY", "XAUTHORITY") if key in os.environ}
+        self.environment = patch.dict(os.environ, display, clear=True)
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
